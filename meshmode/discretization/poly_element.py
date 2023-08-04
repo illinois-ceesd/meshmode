@@ -518,10 +518,12 @@ class HypercubeElementGroupBase(NodalElementGroupBase):
 
 class TensorProductElementGroupBase(PolynomialElementGroupBase,
         HypercubeElementGroupBase):
-    def __init__(self, mesh_el_group, order, index=None, *, basis, unit_nodes,
-                 unit_nodes_1d):
+    def __init__(self, mesh_el_group, order, index=None, *, basis, basis_1d,
+                 unit_nodes, unit_nodes_1d):
         """
         :arg basis: a :class:`modepy.TensorProductBasis`.
+        :arg basis_1d: a representation of the 1D basis from which the tensor
+        product basis is built.
         :arg unit_nodes: unit nodes for the tensor product, obtained by
             using :func:`modepy.tensor_product_nodes`, for example.
         :arg unit_nodes_1d: the one-dimensional set of nodes used in the tensor
@@ -538,11 +540,15 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
                     f"expected {mesh_el_group.dim}, got {unit_nodes.shape[0]}.")
 
         self._basis = basis
+        self._basis_1d = basis_1d
         self._nodes = unit_nodes
         self._nodes_1d = unit_nodes_1d
 
     def basis_obj(self):
         return self._basis
+
+    def basis_1d_obj(self):
+        return self._basis_1d
 
     @memoize_method
     def quadrature_rule(self):
@@ -552,6 +558,10 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
         weights = np.dot(mass_matrix,
                          np.ones(len(basis_fcts)))
         return mp.Quadrature(nodes, weights, exact_to=self.order)
+
+    @property
+    def unit_nodes_1d(self):
+        return self._nodes_1d
 
     def discretization_key(self):
         # FIXME?
@@ -568,8 +578,13 @@ class LegendreTensorProductElementGroup(TensorProductElementGroupBase):
                 mp.QN(mesh_el_group.dim, order),
                 mp.Hypercube(mesh_el_group.dim))
 
+        basis_1d = mp.orthonormal_basis_for_space(
+                mp.QN(1, order),
+                mp.Hypercube(1))
+
         super().__init__(mesh_el_group, order, index=index,
                 basis=basis,
+                basis_1d=basis_1d,
                 unit_nodes=unit_nodes,
                 unit_nodes_1d=unit_nodes_1d)
 

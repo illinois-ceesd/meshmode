@@ -518,11 +518,14 @@ class HypercubeElementGroupBase(NodalElementGroupBase):
 
 class TensorProductElementGroupBase(PolynomialElementGroupBase,
         HypercubeElementGroupBase):
-    def __init__(self, mesh_el_group, order, index=None, *, basis, unit_nodes):
+    def __init__(self, mesh_el_group, order, index=None, *, basis, unit_nodes,
+                 unit_nodes_1d):
         """
         :arg basis: a :class:`modepy.TensorProductBasis`.
         :arg unit_nodes: unit nodes for the tensor product, obtained by
             using :func:`modepy.tensor_product_nodes`, for example.
+        :arg unit_nodes_1d: the one-dimensional set of nodes used in the tensor
+        product, i.e. the set of nodes from which `unit_nodes` is constructed.
         """
         super().__init__(mesh_el_group, order, index=index)
 
@@ -536,6 +539,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
 
         self._basis = basis
         self._nodes = unit_nodes
+        self._nodes_1d = unit_nodes_1d
 
     def basis_obj(self):
         return self._basis
@@ -558,14 +562,16 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
 
 
 class LegendreTensorProductElementGroup(TensorProductElementGroupBase):
-    def __init__(self, mesh_el_group, order, index=None, *, unit_nodes):
+    def __init__(self, mesh_el_group, order, index=None, *, unit_nodes,
+                 unit_nodes_1d):
         basis = mp.orthonormal_basis_for_space(
                 mp.QN(mesh_el_group.dim, order),
                 mp.Hypercube(mesh_el_group.dim))
 
         super().__init__(mesh_el_group, order, index=index,
                 basis=basis,
-                unit_nodes=unit_nodes)
+                unit_nodes=unit_nodes,
+                unit_nodes_1d=unit_nodes_1d)
 
 
 class GaussLegendreTensorProductElementGroup(LegendreTensorProductElementGroup):
@@ -579,9 +585,12 @@ class GaussLegendreTensorProductElementGroup(LegendreTensorProductElementGroup):
     def __init__(self, mesh_el_group, order, index=None):
         self._quadrature_rule = mp.LegendreGaussTensorProductQuadrature(
                 order, mesh_el_group.dim)
+        self._quadrature_rule_1d = mp.LegendreGaussTensorProductQuadrature(
+                order, 1)
 
         super().__init__(mesh_el_group, order, index=index,
-                unit_nodes=self._quadrature_rule.nodes)
+                unit_nodes=self._quadrature_rule.nodes,
+                unit_nodes_1d=self._quadrature_rule_1d.nodes)
 
     @memoize_method
     def quadrature_rule(self):
@@ -603,10 +612,13 @@ class LegendreGaussLobattoTensorProductElementGroup(
 
     def __init__(self, mesh_el_group, order, index=None):
         from modepy.quadrature.jacobi_gauss import legendre_gauss_lobatto_nodes
-        unit_nodes_1d = legendre_gauss_lobatto_nodes(order)
-        unit_nodes = mp.tensor_product_nodes([unit_nodes_1d] * mesh_el_group.dim)
+        _unit_nodes_1d = legendre_gauss_lobatto_nodes(order)
+        unit_nodes = mp.tensor_product_nodes(
+                [_unit_nodes_1d] * mesh_el_group.dim)
 
-        super().__init__(mesh_el_group, order, index=index, unit_nodes=unit_nodes)
+        super().__init__(mesh_el_group, order, index=index,
+                         unit_nodes=unit_nodes,
+                         unit_nodes_1d=_unit_nodes_1d)
 
     def discretization_key(self):
         return (type(self), self.dim, self.order)
@@ -623,10 +635,13 @@ class EquidistantTensorProductElementGroup(LegendreTensorProductElementGroup):
 
     def __init__(self, mesh_el_group, order, index=None):
         from modepy.nodes import equidistant_nodes
-        unit_nodes_1d = equidistant_nodes(1, order)[0]
-        unit_nodes = mp.tensor_product_nodes([unit_nodes_1d] * mesh_el_group.dim)
+        _unit_nodes_1d = equidistant_nodes(1, order)[0]
+        unit_nodes = mp.tensor_product_nodes(
+                [_unit_nodes_1d] * mesh_el_group.dim)
 
-        super().__init__(mesh_el_group, order, index=index, unit_nodes=unit_nodes)
+        super().__init__(mesh_el_group, order, index=index,
+                         unit_nodes=unit_nodes,
+                         unit_nodes_1d=_unit_nodes_1d)
 
     def discretization_key(self):
         return (type(self), self.dim, self.order)

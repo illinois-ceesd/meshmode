@@ -561,7 +561,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
 
     @property
     def unit_nodes_1d(self):
-        return self._nodes_1d
+        return np.array([self._nodes_1d])
 
     def discretization_key(self):
         # FIXME?

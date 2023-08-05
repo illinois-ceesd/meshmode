@@ -519,15 +519,13 @@ class HypercubeElementGroupBase(NodalElementGroupBase):
 class TensorProductElementGroupBase(PolynomialElementGroupBase,
         HypercubeElementGroupBase):
     def __init__(self, mesh_el_group, order, index=None, *, basis, basis_1d,
-                 unit_nodes, unit_nodes_1d):
+                 unit_nodes_1d):
         """
         :arg basis: a :class:`modepy.TensorProductBasis`.
         :arg basis_1d: a representation of the 1D basis from which the tensor
-        product basis is built.
-        :arg unit_nodes: unit nodes for the tensor product, obtained by
-            using :func:`modepy.tensor_product_nodes`, for example.
+            product basis is built.
         :arg unit_nodes_1d: the one-dimensional set of nodes used in the tensor
-        product, i.e. the set of nodes from which `unit_nodes` is constructed.
+            product, i.e. the set of nodes from which `unit_nodes` is constructed.
         """
         super().__init__(mesh_el_group, order, index=index)
 
@@ -535,13 +533,8 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
             raise ValueError("basis dimension does not match element group: "
                     f"expected {mesh_el_group.dim}, got {basis._dim}.")
 
-        if unit_nodes.shape[0] != mesh_el_group.dim:
-            raise ValueError("unit node dimension does not match element group: "
-                    f"expected {mesh_el_group.dim}, got {unit_nodes.shape[0]}.")
-
         self._basis = basis
         self._basis_1d = basis_1d
-        self._nodes = unit_nodes
         self._nodes_1d = unit_nodes_1d
 
     def basis_obj(self):
@@ -553,15 +546,31 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
     @memoize_method
     def quadrature_rule(self):
         basis_fcts = self._basis.functions
-        nodes = self._nodes
+        nodes = self.unit_nodes
         mass_matrix = mp.mass_matrix(basis_fcts, nodes)
         weights = np.dot(mass_matrix,
                          np.ones(len(basis_fcts)))
         return mp.Quadrature(nodes, weights, exact_to=self.order)
 
     @property
+    @memoize_method
     def unit_nodes_1d(self):
+        # basis function arguments are expected to be nested arrays. Here,
+        # _nodes_1d.shape = (n,), but _nodes_1d.shape = (1, n) is needed.
         return np.array([self._nodes_1d])
+
+    @property
+    @memoize_method
+    def unit_nodes(self):
+        # in this case, we want unit_nodes_1d = (n,)*dim
+        unit_nodes = mp.tensor_product_nodes(
+                [self.unit_nodes_1d[0]] * self.mesh_el_group.dim)
+
+        if unit_nodes.shape[0] != self.mesh_el_group.dim:
+            raise ValueError("unit node dimension does not match element group: "
+                    f"expected {self.mesh_el_group.dim}, got {unit_nodes.shape[0]}.")
+
+        return unit_nodes
 
     def discretization_key(self):
         # FIXME?
@@ -572,8 +581,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
 
 
 class LegendreTensorProductElementGroup(TensorProductElementGroupBase):
-    def __init__(self, mesh_el_group, order, index=None, *, unit_nodes,
-                 unit_nodes_1d):
+    def __init__(self, mesh_el_group, order, index=None, *, unit_nodes_1d):
         basis = mp.orthonormal_basis_for_space(
                 mp.QN(mesh_el_group.dim, order),
                 mp.Hypercube(mesh_el_group.dim))
@@ -585,7 +593,6 @@ class LegendreTensorProductElementGroup(TensorProductElementGroupBase):
         super().__init__(mesh_el_group, order, index=index,
                 basis=basis,
                 basis_1d=basis_1d,
-                unit_nodes=unit_nodes,
                 unit_nodes_1d=unit_nodes_1d)
 
 
@@ -600,12 +607,11 @@ class GaussLegendreTensorProductElementGroup(LegendreTensorProductElementGroup):
     def __init__(self, mesh_el_group, order, index=None):
         self._quadrature_rule = mp.LegendreGaussTensorProductQuadrature(
                 order, mesh_el_group.dim)
-        self._quadrature_rule_1d = mp.LegendreGaussTensorProductQuadrature(
+        _unit_nodes_1d = mp.LegendreGaussTensorProductQuadrature(
                 order, 1)
 
         super().__init__(mesh_el_group, order, index=index,
-                unit_nodes=self._quadrature_rule.nodes,
-                unit_nodes_1d=self._quadrature_rule_1d.nodes)
+                unit_nodes_1d=_unit_nodes_1d.nodes)
 
     @memoize_method
     def quadrature_rule(self):
@@ -628,11 +634,8 @@ class LegendreGaussLobattoTensorProductElementGroup(
     def __init__(self, mesh_el_group, order, index=None):
         from modepy.quadrature.jacobi_gauss import legendre_gauss_lobatto_nodes
         _unit_nodes_1d = legendre_gauss_lobatto_nodes(order)
-        unit_nodes = mp.tensor_product_nodes(
-                [_unit_nodes_1d] * mesh_el_group.dim)
 
         super().__init__(mesh_el_group, order, index=index,
-                         unit_nodes=unit_nodes,
                          unit_nodes_1d=_unit_nodes_1d)
 
     def discretization_key(self):
@@ -651,11 +654,8 @@ class EquidistantTensorProductElementGroup(LegendreTensorProductElementGroup):
     def __init__(self, mesh_el_group, order, index=None):
         from modepy.nodes import equidistant_nodes
         _unit_nodes_1d = equidistant_nodes(1, order)[0]
-        unit_nodes = mp.tensor_product_nodes(
-                [_unit_nodes_1d] * mesh_el_group.dim)
 
         super().__init__(mesh_el_group, order, index=index,
-                         unit_nodes=unit_nodes,
                          unit_nodes_1d=_unit_nodes_1d)
 
     def discretization_key(self):

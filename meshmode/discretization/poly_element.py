@@ -608,10 +608,10 @@ class GaussLegendreTensorProductElementGroup(LegendreTensorProductElementGroup):
         self._quadrature_rule = mp.LegendreGaussTensorProductQuadrature(
                 order, mesh_el_group.dim)
         _unit_nodes_1d = mp.LegendreGaussTensorProductQuadrature(
-                order, 1)
+                order, 1).nodes
 
         super().__init__(mesh_el_group, order, index=index,
-                unit_nodes_1d=_unit_nodes_1d.nodes)
+                unit_nodes_1d=_unit_nodes_1d)
 
     @memoize_method
     def quadrature_rule(self):

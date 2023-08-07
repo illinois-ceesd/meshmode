@@ -562,7 +562,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
     @property
     @memoize_method
     def unit_nodes(self):
-        # in this case, we want unit_nodes_1d = (n,)*dim
+        # in this case, we want unit_nodes_1d.shape = (n,)*dim
         unit_nodes = mp.tensor_product_nodes(
                 [self.unit_nodes_1d[0]] * self.mesh_el_group.dim)
 

@@ -518,30 +518,35 @@ class HypercubeElementGroupBase(NodalElementGroupBase):
 
 class TensorProductElementGroupBase(PolynomialElementGroupBase,
         HypercubeElementGroupBase):
-    def __init__(self, mesh_el_group, order, index=None, *, basis, basis_1d,
+    def __init__(self, mesh_el_group, order, index=None, *, basis,
                  unit_nodes_1d):
         """
-        :arg basis: a :class:`modepy.TensorProductBasis`.
-        :arg basis_1d: a representation of the 1D basis from which the tensor
-            product basis is built.
+        :arg basis: a callable used to generate the tensor product basis. Used
+        to generate the 1D basis and ND basis. 
         :arg unit_nodes_1d: the one-dimensional set of nodes used in the tensor
             product, i.e. the set of nodes from which `unit_nodes` is constructed.
         """
         super().__init__(mesh_el_group, order, index=index)
 
-        if basis._dim != mesh_el_group.dim:
+        self._basis = basis(
+                mp.QN(mesh_el_group.dim, order),
+                mp.Hypercube(mesh_el_group.dim))
+
+        if self._basis._dim != mesh_el_group.dim:
             raise ValueError("basis dimension does not match element group: "
                     f"expected {mesh_el_group.dim}, got {basis._dim}.")
 
-        self._basis = basis
-        self._basis_1d = basis_1d
-        self._nodes_1d = unit_nodes_1d
+        self._bases_1d = basis(mp.QN(1, order), mp.Hypercube(1))
+        self._unit_nodes_1d = unit_nodes_1d
+        self._unit_nodes = self.unit_nodes
 
     def basis_obj(self):
         return self._basis
 
-    def basis_1d_obj(self):
-        return self._basis_1d
+    def bases_1d(self):
+        """Return 1D bases used in the construction of the tensor product basis
+        """
+        return self._bases_1d
 
     @memoize_method
     def quadrature_rule(self):
@@ -557,7 +562,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
     def unit_nodes_1d(self):
         # basis function arguments are expected to be nested arrays. Here,
         # _nodes_1d.shape = (n,), but _nodes_1d.shape = (1, n) is needed.
-        return np.array([self._nodes_1d])
+        return self._unit_nodes_1d.reshape(1, self._unit_nodes_1d.shape[0])
 
     @property
     @memoize_method
@@ -582,17 +587,10 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
 
 class LegendreTensorProductElementGroup(TensorProductElementGroupBase):
     def __init__(self, mesh_el_group, order, index=None, *, unit_nodes_1d):
-        basis = mp.orthonormal_basis_for_space(
-                mp.QN(mesh_el_group.dim, order),
-                mp.Hypercube(mesh_el_group.dim))
-
-        basis_1d = mp.orthonormal_basis_for_space(
-                mp.QN(1, order),
-                mp.Hypercube(1))
+        basis = mp.orthonormal_basis_for_space
 
         super().__init__(mesh_el_group, order, index=index,
                 basis=basis,
-                basis_1d=basis_1d,
                 unit_nodes_1d=unit_nodes_1d)
 
 

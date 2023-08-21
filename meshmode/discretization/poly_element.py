@@ -522,7 +522,7 @@ class TensorProductElementGroupBase(PolynomialElementGroupBase,
                  unit_nodes_1d):
         """
         :arg basis: a callable used to generate the tensor product basis. Used
-        to generate the 1D basis and ND basis. 
+            to generate the 1D basis and ND basis functions.
         :arg unit_nodes_1d: the one-dimensional set of nodes used in the tensor
             product, i.e. the set of nodes from which `unit_nodes` is constructed.
         """

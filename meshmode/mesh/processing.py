@@ -468,8 +468,8 @@ def _get_mesh_part(
         element_counts[elements] += 1
     if np.any(element_counts > 1):
         raise ValueError("elements cannot belong to multiple parts")
-    if np.any(element_counts < 1):
-        raise ValueError("partition must contain all elements")
+    # if np.any(element_counts < 1):
+    #    raise ValueError("partition must contain all elements")
 
     part_id_to_part_index = {
         part_id: part_index

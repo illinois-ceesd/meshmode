@@ -96,6 +96,7 @@ def mpi_distribute(
     :returns: The data local to the current process if there is any, otherwise
         *None*.
     """
+    from mpi4py.util import pkl5
     with _duplicate_mpi_comm(mpi_comm) as mpi_comm:
         num_proc = mpi_comm.Get_size()
         rank = mpi_comm.Get_rank()
@@ -122,8 +123,8 @@ def mpi_distribute(
 
             logger.info("rank %d: sent all data", rank)
 
-            from mpi4py import MPI
-            MPI.Request.waitall(reqs)
+            # from mpi4py import MPI
+            pkl5.Request.waitall(reqs)
 
         else:
             receiving = mpi_comm.scatter([], root=source_rank)
@@ -420,7 +421,8 @@ class MPIBoundaryCommSetupHelper:
             self.pending_recv_identifiers.remove((local_part_id, remote_part_id))
 
         if not self.pending_recv_identifiers:
-            MPI.Request.waitall(self.send_reqs)
+            from mpi4py.util import pkl5
+            pkl5.Request.waitall(self.send_reqs)
             logger.info("bdry comm rank %d comm end", self.i_local_rank)
 
         return remote_to_local_bdry_conns

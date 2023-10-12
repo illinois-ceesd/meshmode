@@ -123,7 +123,7 @@ def mpi_distribute(
 
             logger.info("rank %d: sent all data", rank)
 
-            # from mpi4py import MPI
+# from mpi4py import MPI
             pkl5.Request.waitall(reqs)
 
         else:
@@ -422,7 +422,13 @@ class MPIBoundaryCommSetupHelper:
 
         if not self.pending_recv_identifiers:
             from mpi4py.util import pkl5
-            pkl5.Request.waitall(self.send_reqs)
+
+            try:
+                pkl5.Request.waitall(self.send_reqs)
+            except TypeError:
+                MPI.Request.waitall(self.send_reqs)
+
+            # pkl5.Request.waitall(self.send_reqs)
             logger.info("bdry comm rank %d comm end", self.i_local_rank)
 
         return remote_to_local_bdry_conns

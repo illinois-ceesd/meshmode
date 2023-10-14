@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from datetime import datetime
 from functools import reduce
 from typing import (
     Callable, Dict, Optional, Union, Tuple, Mapping, List, Set, Sequence,
@@ -475,17 +476,22 @@ def _get_mesh_part(
         part_id: part_index
         for part_index, part_id in enumerate(part_id_to_elements.keys())}
 
+    print(f"{datetime.now()}: -- compute_global_elem_to_part_elem-{self_part_id}...")
     global_elem_to_part_elem = _compute_global_elem_to_part_elem(
         mesh.nelements, part_id_to_elements, part_id_to_part_index,
         mesh.element_id_dtype)
+    print(f"{datetime.now()}: -- compute_global_elem_to_part_elem-{self_part_id} done.")
 
     # Create new mesh groups that mimic the original mesh's groups but only contain
     # the current part's elements
+    print(f"{datetime.now()}: -- filter_mesh_groups-{self_part_id}...")
     self_mesh_groups, required_vertex_indices = _filter_mesh_groups(
         mesh, part_id_to_elements[self_part_id], mesh.vertex_id_dtype)
+    print(f"{datetime.now()}: -- filter_mesh_groups-{self_part_id} done...")
 
     self_part_index = part_id_to_part_index[self_part_id]
 
+    print(f"{datetime.now()}: -- get_local_verts-{self_part_id}...")
     self_vertices = np.zeros((mesh.ambient_dim, len(required_vertex_indices)))
     for dim in range(mesh.ambient_dim):
         self_vertices[dim] = mesh.vertices[dim][required_vertex_indices]
@@ -496,21 +502,30 @@ def _get_mesh_part(
         self_mesh_group_elem_base[igrp] = el_nr
         el_nr += grp.nelements
 
+    print(f"{datetime.now()}: -- get_local_verts-{self_part_id} done")
+    print(f"{datetime.now()}: -- _get_connected_parts-{self_part_id}...")
     connected_parts = _get_connected_parts(
         mesh, part_id_to_part_index, global_elem_to_part_elem,
         self_part_id)
+    print(f"{datetime.now()}: -- _get_connected_parts-{self_part_id} done.")
 
+    print(f"{datetime.now()}: -- _create_self_to_self_adj-{self_part_id}...")
     self_to_self_adj_groups = _create_self_to_self_adjacency_groups(
                 mesh, global_elem_to_part_elem, self_part_index, self_mesh_groups,
                 self_mesh_group_elem_base)
+    print(f"{datetime.now()}: -- _create_self_to_self_adj-{self_part_id} done.")
 
+    print(f"{datetime.now()}: -- _create_self_to_other_adj-{self_part_id}...")
     self_to_other_adj_groups = _create_self_to_other_adjacency_groups(
                 mesh, part_id_to_part_index, global_elem_to_part_elem, self_part_id,
                 self_mesh_groups, self_mesh_group_elem_base, connected_parts)
+    print(f"{datetime.now()}: -- _create_self_to_other_adj-{self_part_id} done.")
 
+    print(f"{datetime.now()}: -- _create_boundary_groups-{self_part_id}...")
     boundary_adj_groups = _create_boundary_groups(
                 mesh, global_elem_to_part_elem, self_part_index, self_mesh_groups,
                 self_mesh_group_elem_base)
+    print(f"{datetime.now()}: -- _create_boundary_groups-{self_part_id} done.")
 
     def _gather_grps(igrp: int) -> List[FacialAdjacencyGroup]:
         self_grps: Sequence[FacialAdjacencyGroup] = self_to_self_adj_groups[igrp]
@@ -519,9 +534,11 @@ def _get_mesh_part(
 
         return list(self_grps) + list(other_grps) + list(bdry_grps)
 
+    print(f"{datetime.now()}: -- self_facial_adj_groups-{self_part_id}...")
     # Combine adjacency groups
     self_facial_adj_groups = [
             _gather_grps(igrp) for igrp in range(len(self_mesh_groups))]
+    print(f"{datetime.now()}: -- self_facial_adj_groups-{self_part_id} done.")
 
     return Mesh(
             self_vertices,

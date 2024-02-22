@@ -483,9 +483,10 @@ def membership_list_to_map(membership_list):
     :class:`dict` that maps a key to a set of indices (with each set of indices
     stored as a sorted :class:`numpy.ndarray`).
     """
+    from orderedsets import OrderedSet
     return {
         entry: np.where(membership_list == entry)[0]
-        for entry in set(membership_list)}
+        for entry in OrderedSet(membership_list)}
 
 
 # FIXME: Move somewhere else, since it's not strictly limited to distributed?

@@ -25,6 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from orderedsets import FrozenOrderedSet, OrderedSet
+
 import sys
 import logging
 import numpy as np
@@ -198,7 +200,7 @@ def _transform_loopy_inner(t_unit):
 def _transform_with_element_and_dof_inames(t_unit, el_inames, dof_inames):
     import loopy as lp
 
-    if set(el_inames) & set(dof_inames):
+    if OrderedSet(el_inames) & OrderedSet(dof_inames):
         raise ValueError("Some inames are marked as both 'element' and 'dof' "
                 "inames. These must be disjoint.")
 
@@ -265,8 +267,8 @@ class PytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContextBase):
 
         def untag_loopy_call_results(expr):
             if isinstance(expr, pt.NamedArray):
-                return expr.copy(tags=frozenset(),
-                                 axes=(pt.Axis(frozenset()),)*expr.ndim)
+                return expr.copy(tags=FrozenOrderedSet(),
+                                 axes=(pt.Axis(FrozenOrderedSet()),)*expr.ndim)
             else:
                 return expr
 
@@ -373,7 +375,7 @@ def _single_grid_work_group_transform(kernel, cl_device):
     from meshmode.transform_metadata import (ConcurrentElementInameTag,
                                              ConcurrentDOFInameTag)
 
-    splayed_inames = set()
+    splayed_inames = OrderedSet()
     ngroups = cl_device.max_compute_units * 4  # '4' to overfill the device
     l_one_size = 4
     l_zero_size = 16
@@ -455,15 +457,15 @@ def _alias_global_temporaries(t_unit):
     iel_order = {iel: i
                  for i, iel in enumerate(toposorted_iels)}
 
-    temp_vars = frozenset(tv.name
+    temp_vars = FrozenOrderedSet(tv.name
                           for tv in kernel.temporary_variables.values()
                           if tv.address_space == AddressSpace.GLOBAL)
-    temp_var_to_iels = {tv: set() for tv in temp_vars}
-    all_iels = {
+    temp_var_to_iels = {tv: OrderedSet() for tv in temp_vars}
+    all_iels = OrderedSet([
         iel
         for iel in kernel.all_inames()
         if kernel.inames[iel].tags_of_type((DiscretizationElementAxisTag,
-                                            DiscretizationFlattenedDOFAxisTag))}
+                                            DiscretizationFlattenedDOFAxisTag))])
 
     if not all_iels:
         # no element loops => return the t_unit as is.
@@ -486,8 +488,8 @@ def _alias_global_temporaries(t_unit):
                                )
                          for tv, iels in temp_var_to_iels.items()}
 
-    iel_to_temps_to_allocate = {iel: set() for iel in all_iels}
-    iel_to_temps_to_free = {iel: set() for iel in all_iels}
+    iel_to_temps_to_allocate = {iel: OrderedSet() for iel in all_iels}
+    iel_to_temps_to_free = {iel: OrderedSet() for iel in all_iels}
     for tv in temp_vars:
         allocate_iel, free_iel = temp_to_iel_start[tv], temp_to_iel_end[tv]
         if iel_order[allocate_iel] >= iel_order[free_iel]:
@@ -654,8 +656,8 @@ class SingleGridWorkBalancingPytatoArrayContext(PytatoPyOpenCLArrayContextBase):
         def untag_loopy_call_results(expr):
             from pytato.loopy import LoopyCallResult
             if isinstance(expr, LoopyCallResult):
-                return expr.copy(tags=frozenset(),
-                                 axes=(pt.Axis(frozenset()),)*expr.ndim)
+                return expr.copy(tags=FrozenOrderedSet(),
+                                 axes=(pt.Axis(FrozenOrderedSet()),)*expr.ndim)
             else:
                 return expr
 
@@ -671,21 +673,21 @@ def get_temps_not_to_contract(knl):
     wmap = knl.writer_map()
     rmap = knl.reader_map()
 
-    temps_not_to_contract = set()
+    temps_not_to_contract = OrderedSet()
     for tv in knl.temporary_variables:
-        if len(wmap.get(tv, set())) == 1:
+        if len(wmap.get(tv, OrderedSet())) == 1:
             writer_id, = wmap[tv]
             writer_loop_nest = knl.id_to_insn[writer_id].within_inames
-            insns_in_writer_loop_nest = reduce(frozenset.union,
+            insns_in_writer_loop_nest = reduce(FrozenOrderedSet.union,
                                                (knl.iname_to_insns()[iname]
                                                 for iname in writer_loop_nest),
-                                               frozenset())
+                                               FrozenOrderedSet())
             if (
-                    (not (rmap.get(tv, frozenset())
+                    (not (rmap.get(tv, FrozenOrderedSet())
                           <= insns_in_writer_loop_nest))
                     or len(knl.id_to_insn[writer_id].reduction_inames()) != 0
                     or any((len(knl.id_to_insn[reader_id].reduction_inames()) != 0)
-                           for reader_id in rmap.get(tv, frozenset()))):
+                           for reader_id in rmap.get(tv, FrozenOrderedSet()))):
                 temps_not_to_contract.add(tv)
         else:
             temps_not_to_contract.add(tv)
@@ -724,7 +726,7 @@ def get_temps_not_to_contract(knl):
     #                                            producer_loops_k,
     #                                            consumer_loops_k),
     #                                        reduce_insno(consumer_insn_k)),
-    #                                    results_filter=frozenset)
+    #                                    results_filter=FrozenOrderedSet)
     # return temps_not_to_contract
 
 
@@ -781,14 +783,14 @@ class NotAnFEMEinsumError(ValueError):
 
 @memoize_on_first_arg
 def _get_redn_iname_to_insns(kernel):
-    redn_iname_to_insns = {iname: set()
+    redn_iname_to_insns = {iname: OrderedSet()
                            for iname in kernel.all_inames()}
 
     for insn in kernel.instructions:
         for redn_iname in insn.reduction_inames():
             redn_iname_to_insns[redn_iname].add(insn.id)
 
-    return immutabledict({k: frozenset(v)
+    return immutabledict({k: FrozenOrderedSet(v)
                 for k, v in redn_iname_to_insns.items()})
 
 
@@ -832,22 +834,22 @@ def _fuse_loops_over_a_discr_entity(knl,
     from functools import reduce, partial
     taggedo = lp.relations.get_taggedo_of_type(orig_knl, mesh_entity)
 
-    redn_loops = reduce(frozenset.union,
+    redn_loops = reduce(FrozenOrderedSet.union,
                         (insn.reduction_inames()
                          for insn in orig_knl.instructions),
-                        frozenset())
+                        FrozenOrderedSet())
 
-    non_redn_loops = reduce(frozenset.union,
+    non_redn_loops = reduce(FrozenOrderedSet.union,
                             (insn.within_inames
                              for insn in orig_knl.instructions),
-                            frozenset())
+                            FrozenOrderedSet())
 
     # tag_k: tag of type 'mesh_entity'
     tag_k = kanren.var()
     tags = kanren.run(0,
                       tag_k,
                       taggedo(kanren.var(), tag_k),
-                      results_filter=frozenset)
+                      results_filter=FrozenOrderedSet)
     for itag, tag in enumerate(
             sorted(tags, key=lambda x: _discr_entity_sort_key(x))):
         # iname_k: iname tagged with 'tag'
@@ -855,8 +857,8 @@ def _fuse_loops_over_a_discr_entity(knl,
         inames = kanren.run(0,
                             iname_k,
                             taggedo(iname_k, tag),
-                            results_filter=frozenset)
-        inames = frozenset(inames)
+                            results_filter=FrozenOrderedSet)
+        inames = FrozenOrderedSet(inames)
         if should_fuse_redn_loops:
             inames = inames & redn_loops
         else:
@@ -865,7 +867,7 @@ def _fuse_loops_over_a_discr_entity(knl,
         length_to_inames = {}
         for iname in inames:
             length = knl.get_constant_iname_length(iname)
-            length_to_inames.setdefault(length, set()).add(iname)
+            length_to_inames.setdefault(length, OrderedSet()).add(iname)
 
         for i, (_, inames_to_fuse) in enumerate(
                 sorted(length_to_inames.items())):
@@ -931,14 +933,14 @@ def contract_arrays(knl, callables_table):
     from loopy.transform.precompute import precompute_for_single_kernel
 
     temps_not_to_contract = get_temps_not_to_contract(knl)
-    all_temps = frozenset(knl.temporary_variables)
+    all_temps = FrozenOrderedSet(knl.temporary_variables)
 
     logger.info("Array Contraction: Contracting "
-                f"{len(all_temps-frozenset(temps_not_to_contract))} temps")
+                f"{len(all_temps-FrozenOrderedSet(temps_not_to_contract))} temps")
 
     wmap = knl.writer_map()
 
-    for temp in sorted(all_temps - frozenset(temps_not_to_contract)):
+    for temp in sorted(all_temps - FrozenOrderedSet(temps_not_to_contract)):
         writer_id, = wmap[temp]
         rmap = knl.reader_map()
         ensm_tag, = knl.id_to_insn[writer_id].tags_of_type(EinsumTag)
@@ -1006,33 +1008,33 @@ def _get_group_size_for_dof_array_loop(nunit_dofs):
 
 
 def _get_iel_to_idofs(kernel):
-    iel_inames = {iname
+    iel_inames = OrderedSet([iname
                   for iname in kernel.all_inames()
                   if (kernel
                       .inames[iname]
                       .tags_of_type((DiscretizationElementAxisTag,
                                      DiscretizationFlattenedDOFAxisTag)))
-                  }
-    idof_inames = {iname
+    ])
+    idof_inames = OrderedSet([iname
                    for iname in kernel.all_inames()
                    if (kernel
                        .inames[iname]
                        .tags_of_type(DiscretizationDOFAxisTag))
-                   }
-    iface_inames = {iname
+                   ])
+    iface_inames = OrderedSet([iname
                     for iname in kernel.all_inames()
                     if (kernel
                         .inames[iname]
                         .tags_of_type(DiscretizationFaceAxisTag))
-                    }
-    idim_inames = {iname
+                    ])
+    idim_inames = OrderedSet([iname
                    for iname in kernel.all_inames()
                    if (kernel
                        .inames[iname]
                        .tags_of_type(DiscretizationDimAxisTag))
-                   }
+                   ])
 
-    iel_to_idofs = {iel: set() for iel in iel_inames}
+    iel_to_idofs = {iel: OrderedSet() for iel in iel_inames}
 
     for insn in kernel.instructions:
         if (len(insn.within_inames) == 1
@@ -1083,21 +1085,21 @@ def _get_iel_to_idofs(kernel):
             raise NotImplementedError(f"Cannot fit loop nest '{insn.within_inames}'"
                                       " into known set of loop-nest patterns.")
 
-    return immutabledict({iel: frozenset(idofs)
+    return immutabledict({iel: FrozenOrderedSet(idofs)
                  for iel, idofs in iel_to_idofs.items()})
 
 
 def _get_iel_loop_from_insn(insn, knl):
-    iel, = {iname
+    iel, = OrderedSet([iname
             for iname in insn.within_inames
             if knl.inames[iname].tags_of_type((DiscretizationElementAxisTag,
-                                               DiscretizationFlattenedDOFAxisTag))}
+                                               DiscretizationFlattenedDOFAxisTag))])
     return iel
 
 
 def _get_element_loop_topo_sorted_order(knl):
     from loopy import MultiAssignmentBase
-    dag = {iel: set()
+    dag = {iel: OrderedSet()
            for iel in knl.all_inames()
            if knl.inames[iel].tags_of_type(DiscretizationElementAxisTag)}
 
@@ -1136,13 +1138,13 @@ def _prepare_kernel_for_parallelization(kernel):
 
     for insn in kernel.instructions:
         inames = insn.within_inames | insn.reduction_inames()
-        ensm_buckets.setdefault(tuple(sorted(inames)), set()).add(insn.id)
+        ensm_buckets.setdefault(tuple(sorted(inames)), OrderedSet()).add(insn.id)
 
     # FIXME: Dependency violation is a big concern here
     # Waiting on the loopy feature: https://github.com/inducer/loopy/issues/550
 
     for ieinsm, (loop_nest, insns) in enumerate(sorted(ensm_buckets.items())):
-        new_insns = [insn.tagged(EinsumTag(frozenset(loop_nest)))
+        new_insns = [insn.tagged(EinsumTag(FrozenOrderedSet(loop_nest)))
                      if insn.id in insns
                      else insn
                      for insn in kernel.instructions]
@@ -1158,7 +1160,7 @@ def _prepare_kernel_for_parallelization(kernel):
         kernel = lp.duplicate_inames(
             kernel,
             loop_nest,
-            within=ObjTagged(EinsumTag(frozenset(loop_nest))),
+            within=ObjTagged(EinsumTag(FrozenOrderedSet(loop_nest))),
             new_inames=new_inames,
             tags={iname: kernel.inames[iname].tags
                   for iname in loop_nest})
@@ -1177,14 +1179,14 @@ def _get_elementwise_einsum(t_unit, einsum_tag):
     assert isinstance(einsum_tag, EinsumTag)
     insn_match = ObjTagged(einsum_tag)
 
-    global_vars = ({tv.name
+    global_vars = OrderedSet([tv.name
                     for tv in kernel.temporary_variables.values()
-                    if tv.address_space == lp.AddressSpace.GLOBAL}
-                   | set(kernel.arg_dict.keys()))
+                    if tv.address_space == lp.AddressSpace.GLOBAL]) \
+                   | OrderedSet(kernel.arg_dict.keys())
     insns = [insn
              for insn in kernel.instructions
              if insn_match(kernel, insn)]
-    idx_tuples = set()
+    idx_tuples = OrderedSet()
 
     for insn in insns:
         assert len(insn.assignees) == 1
@@ -1223,21 +1225,21 @@ def _combine_einsum_domains(knl):
 
     new_domains = []
     einsum_tags = reduce(
-        frozenset.union,
+        FrozenOrderedSet.union,
         (insn.tags_of_type(EinsumTag)
          for insn in knl.instructions),
-        frozenset())
+        FrozenOrderedSet())
 
     for tag in sorted(einsum_tags,
                       key=lambda x: sorted(x.orig_loop_nest)):
         insns = [insn
                  for insn in knl.instructions
                  if tag in insn.tags]
-        inames = reduce(frozenset.union,
+        inames = reduce(FrozenOrderedSet.union,
                         ((insn.within_inames | insn.reduction_inames())
                          for insn in insns),
-                        frozenset())
-        domain = knl.get_inames_domain(frozenset(inames))
+                        FrozenOrderedSet())
+        domain = knl.get_inames_domain(FrozenOrderedSet(inames))
         new_domains.append(domain.project_out_except(sorted(inames),
                                                      [isl.dim_type.set]))
 
@@ -1294,7 +1296,7 @@ class FusionContractorArrayContext(
 
         # {{{ indirect addressing are non-negative
 
-        indirection_maps = set()
+        indirection_maps = OrderedSet()
 
         class _IndirectionMapRecorder(pt.transform.CachedWalkMapper):
             # type-ignore-reason: dropped the extra `*args, **kwargs`.
@@ -1424,8 +1426,8 @@ class FusionContractorArrayContext(
         def untag_loopy_call_results(expr):
             from pytato.loopy import LoopyCallResult
             if isinstance(expr, LoopyCallResult):
-                return expr.copy(tags=frozenset(),
-                                 axes=(pt.Axis(frozenset()),)*expr.ndim)
+                return expr.copy(tags=FrozenOrderedSet(),
+                                 axes=(pt.Axis(FrozenOrderedSet()),)*expr.ndim)
             else:
                 return expr
 
@@ -1531,7 +1533,7 @@ class FusionContractorArrayContext(
 
         # {{{ attach FEMEinsumTag tags
 
-        dag_outputs = frozenset(dag._data.values())
+        dag_outputs = FrozenOrderedSet(dag._data.values())
 
         def add_fem_einsum_tags(expr):
             if isinstance(expr, pt.Einsum):
@@ -1795,17 +1797,17 @@ class FusionContractorArrayContext(
                        )
 
             einsum_tags = reduce(
-                frozenset.union,
+                FrozenOrderedSet.union,
                 (insn.tags_of_type(EinsumTag)
                  for insn in t_unit.default_entrypoint.instructions),
-                frozenset())
+                FrozenOrderedSet())
             for ensm_tag in sorted(einsum_tags,
                                    key=lambda x: sorted(x.orig_loop_nest)):
-                if reduce(frozenset.union,
+                if reduce(FrozenOrderedSet.union,
                           (insn.reduction_inames()
                            for insn in (t_unit.default_entrypoint.instructions)
                            if ensm_tag in insn.tags),
-                          frozenset()):
+                          FrozenOrderedSet()):
                     fused_einsum = fnsm.match_einsum(t_unit, ObjTagged(ensm_tag))
                 else:
                     # elementwise loop
@@ -1826,8 +1828,8 @@ class FusionContractorArrayContext(
             knl = t_unit.default_entrypoint
             for iel, idofs in sorted(iel_to_idofs.items()):
                 if idofs:
-                    nunit_dofs = {knl.get_constant_iname_length(idof)
-                                  for idof in idofs}
+                    nunit_dofs = OrderedSet([knl.get_constant_iname_length(idof)
+                                  for idof in idofs])
                     idof, = idofs
 
                     l_one_size, l_zero_size = _get_group_size_for_dof_array_loop(

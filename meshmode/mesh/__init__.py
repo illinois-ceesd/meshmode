@@ -28,6 +28,7 @@ import numpy as np
 import numpy.linalg as la
 
 import modepy as mp
+from orderedsets import OrderedSet, FrozenOrderedSet
 from pytools import Record, memoize_method
 
 from meshmode.mesh.tools import AffineMap
@@ -166,8 +167,8 @@ class BTAG_INDUCED_BOUNDARY(BTAG_NO_BOUNDARY):  # noqa: N801
     # firedrakeproject.org seems to reject connections from Github.
 
 
-SYSTEM_TAGS = {BTAG_NONE, BTAG_ALL, BTAG_REALLY_ALL, BTAG_NO_BOUNDARY,
-                   BTAG_PARTITION, BTAG_INDUCED_BOUNDARY}
+SYSTEM_TAGS = FrozenOrderedSet([BTAG_NONE, BTAG_ALL, BTAG_REALLY_ALL, BTAG_NO_BOUNDARY,
+                   BTAG_PARTITION, BTAG_INDUCED_BOUNDARY])
 
 # }}}
 
@@ -1291,7 +1292,7 @@ def _compute_nodal_adjacency_from_vertices(mesh):
             for ivertex in grp.vertex_indices[iel_grp]:
                 vertex_to_element[ivertex].append(base_element_nr + iel_grp)
 
-    element_to_element = [set() for i in range(mesh.nelements)]
+    element_to_element = [OrderedSet() for i in range(mesh.nelements)]
     for base_element_nr, grp in zip(mesh.base_element_nrs, mesh.groups):
         for iel_grp in range(grp.nelements):
             for ivertex in grp.vertex_indices[iel_grp]:
@@ -1409,13 +1410,13 @@ def _compute_facial_adjacency_from_vertices(
         return []
 
     if face_vertex_indices_to_tags is not None:
-        boundary_tags = {
+        boundary_tags = OrderedSet([
             tag
             for tags in face_vertex_indices_to_tags.values()
             for tag in tags
-            if tags is not None}
+            if tags is not None])
     else:
-        boundary_tags = set()
+        boundary_tags = OrderedSet()
 
     boundary_tag_to_index = {tag: i for i, tag in enumerate(boundary_tags)}
 
@@ -1501,7 +1502,7 @@ def _compute_facial_adjacency_from_vertices(
             if face_vertex_indices_to_tags is not None:
                 for i in range(len(bdry_elements)):
                     ref_fvi = grp.face_vertex_indices()[bdry_element_faces[i]]
-                    fvi = frozenset(grp.vertex_indices[bdry_elements[i], ref_fvi])
+                    fvi = FrozenOrderedSet(grp.vertex_indices[bdry_elements[i], ref_fvi])
                     tags = face_vertex_indices_to_tags.get(fvi, None)
                     if tags is not None:
                         for tag in tags:
@@ -1596,7 +1597,7 @@ def _complete_facial_adjacency_groups(
             grp for grp in fagrp_list
             if isinstance(grp, BoundaryAdjacencyGroup)]
 
-        bdry_tags = {grp.boundary_tag for grp in bdry_grps}
+        bdry_tags = OrderedSet([grp.boundary_tag for grp in bdry_grps])
 
         if BTAG_NONE not in bdry_tags:
             completed_fagrp_list.append(

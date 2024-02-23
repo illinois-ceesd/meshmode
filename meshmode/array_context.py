@@ -30,7 +30,7 @@ import logging
 import numpy as np
 
 from warnings import warn
-from typing import Union, FrozenSet, Tuple, Any
+from typing import Union, FrozenSet, Tuple, Any, Optional, Callable, TYPE_CHECKING
 from arraycontext import PyOpenCLArrayContext as PyOpenCLArrayContextBase
 from arraycontext import PytatoPyOpenCLArrayContext as PytatoPyOpenCLArrayContextBase
 from arraycontext.pytest import (
@@ -43,6 +43,7 @@ from loopy.tools import memoize_on_disk
 from pytools import ProcessLogger, memoize_on_first_arg
 from pytools.tag import UniqueTag, tag_dataclass
 
+from meshmode import Error
 from meshmode.transform_metadata import (DiscretizationElementAxisTag,
                                          DiscretizationDOFAxisTag,
                                          DiscretizationFaceAxisTag,
@@ -53,8 +54,23 @@ from meshmode.transform_metadata import (DiscretizationElementAxisTag,
                                          DiscretizationEntityAxisTag)
 from dataclasses import dataclass
 
+if TYPE_CHECKING:
+    import pyopencl as cl
+
 from immutabledict import immutabledict
 logger = logging.getLogger(__name__)
+
+
+class ArrayContextLoopyTransformError(Error):
+    pass
+
+
+class AxisTagInferenceError(ArrayContextLoopyTransformError):
+    pass
+
+
+class EinsumInferenceError(ArrayContextLoopyTransformError):
+    pass
 
 
 def thaw(actx, ary):
@@ -1247,6 +1263,24 @@ def _combine_einsum_domains(knl):
 class FusionContractorArrayContext(
         SingleGridWorkBalancingPytatoArrayContext):
 
+    def __init__(
+            self, queue: "cl.CommandQueue", allocator=None, *,
+            use_memory_pool: Optional[bool] = None,
+            compile_trace_callback: Optional[Callable[[Any, str, Any], None]] = None,
+            use_axis_tag_inference_fallback: bool = False,
+            use_einsum_inference_fallback: bool = False,
+
+            # do not use: only for testing
+            _force_svm_arg_limit: Optional[int] = None,
+            ) -> None:
+        super().__init__(
+            queue, allocator,
+            use_memory_pool=use_memory_pool,
+            compile_trace_callback=compile_trace_callback,
+            _force_svm_arg_limit=_force_svm_arg_limit)
+        self.use_axis_tag_inference_fallback = use_axis_tag_inference_fallback
+        self.use_einsum_inference_fallback = use_einsum_inference_fallback
+
     def transform_dag(self, dag):
         import pytato as pt
 
@@ -1627,23 +1661,28 @@ class FusionContractorArrayContext(
 
         for iname in knl.all_inames():
             if not knl.iname_tags_of_type(iname, DiscretizationEntityAxisTag):
-                warn(f"[{knl.name}]: Falling back to a slower transformation"
-                     " strategy as some loops are uninferred which mesh entity"
-                     " they belong to.",
-                     stacklevel=2)
-
-                return super().transform_loopy_program(original_t_unit)
+                if not self.use_axis_tag_inference_fallback:
+                    raise AxisTagInferenceError("Unable to infer axis tags.")
+                else:
+                    warn(f"[{knl.name}]: Falling back to a slower transformation"
+                         " strategy as some loops are uninferred which mesh entity"
+                         " they belong to.",
+                         stacklevel=2)
+                    return super().transform_loopy_program(original_t_unit)
 
         for insn in knl.instructions:
             for assignee in insn.assignee_var_names():
                 var = knl.get_var_descriptor(assignee)
                 if not var.tags_of_type(FEMEinsumTag):
-                    warn(f"[{knl.name}]: Falling back to a slower transformation"
-                         " strategy as some instructions couldn't be inferred as"
-                         " einsums",
-                         stacklevel=2)
-
-                    return super().transform_loopy_program(original_t_unit)
+                    if not self.use_einsum_inference_fallback:
+                        raise EinsumInferenceError(
+                            "Unable to infer instructions as einsums.")
+                    else:
+                        warn(f"[{knl.name}]: Falling back to a slower transformation"
+                             " strategy as some instructions couldn't be inferred as"
+                             " einsums",
+                             stacklevel=2)
+                        return super().transform_loopy_program(original_t_unit)
 
         # }}}
 

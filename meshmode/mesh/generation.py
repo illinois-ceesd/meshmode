@@ -22,18 +22,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union, Sequence
+import logging
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import numpy.linalg as la
+
 import modepy as mp
+from pytools import deprecate_keyword, log_process
 
 from meshmode.mesh import Mesh, MeshElementGroup
 from meshmode.mesh.refinement import Refiner
 
-from pytools import log_process, deprecate_keyword
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -672,9 +673,10 @@ def generate_sphere(r: float, order: int, *,
     from dataclasses import replace
     vertices = mesh.vertices * r / np.sqrt(np.sum(mesh.vertices**2, axis=0))
     grp, = mesh.groups
-    grp = replace(grp,
-            nodes=grp.nodes * r / np.sqrt(np.sum(grp.nodes**2, axis=0)),
-            element_nr_base=None, node_nr_base=None)
+    grp = replace(
+        grp,
+        nodes=grp.nodes * r / np.sqrt(np.sum(grp.nodes**2, axis=0))
+        )
 
     from meshmode.mesh import Mesh
     return Mesh(
@@ -748,8 +750,7 @@ def generate_surface_of_revolution(
     from dataclasses import replace
     vertices = ensure_radius(mesh.vertices)
     grp, = mesh.groups
-    grp = replace(grp, nodes=ensure_radius(grp.nodes),
-                  element_nr_base=None, node_nr_base=None)
+    grp = replace(grp, nodes=ensure_radius(grp.nodes))
 
     from meshmode.mesh import Mesh
     return Mesh(
@@ -854,8 +855,7 @@ def generate_torus_and_cycle_vertices(
     # }}}
 
     from dataclasses import replace
-    grp = replace(grp, vertex_indices=vertex_indices, nodes=nodes,
-                  element_nr_base=None, node_nr_base=None)
+    grp = replace(grp, vertex_indices=vertex_indices, nodes=nodes)
 
     from meshmode.mesh import Mesh
     return (
@@ -951,9 +951,10 @@ def generate_torus(
 # {{{ get_urchin
 
 def refine_mesh_and_get_urchin_warper(
-        order: int, m: int, n: int, est_rel_interp_tolerance: float,
-        min_rad: float = 0.2,
-        uniform_refinement_rounds: int = 0) -> Mesh:
+            order: int, m: int, n: int, est_rel_interp_tolerance: float,
+            min_rad: float = 0.2,
+            uniform_refinement_rounds: int = 0
+        ) -> Tuple[Refiner, Callable[[Mesh], Mesh]]:
     """
     :arg order: order of the (simplex) elements.
     :arg m: order of the spherical harmonic :math:`Y^m_n`.
@@ -981,6 +982,7 @@ def refine_mesh_and_get_urchin_warper(
         phi = np.arctan2(y, x)
 
         import scipy.special as sps
+
         # Note: This matches the spherical harmonic
         # convention in the QBX3D paper:
         # https://arxiv.org/abs/1805.06106
@@ -1002,8 +1004,7 @@ def refine_mesh_and_get_urchin_warper(
     def warp_mesh(mesh: Mesh) -> Mesh:
         from dataclasses import replace
         groups = [
-            replace(grp, nodes=map_coords(grp.nodes),
-                    element_nr_base=None, node_nr_base=None)
+            replace(grp, nodes=map_coords(grp.nodes))
             for grp in mesh.groups]
 
         from meshmode.mesh import Mesh
@@ -1028,15 +1029,12 @@ def refine_mesh_and_get_urchin_warper(
     hi = np.max(nodes_sph)
     del nodes_sph
 
-    from functools import partial
     unwarped_mesh = warp_and_refine_until_resolved(
                 refiner,
                 warp_mesh,
                 est_rel_interp_tolerance)
 
-    return refiner, partial(
-            warp_mesh,
-            node_vertex_consistency_tolerance=est_rel_interp_tolerance)
+    return refiner, warp_mesh
 
 
 def generate_urchin(
@@ -1399,10 +1397,9 @@ def generate_box_mesh(
             is_conforming=True)
 
     if any(periodic):
-        from meshmode.mesh.processing import (
-            glue_mesh_boundaries, BoundaryPairMapping)
-
         from meshmode import AffineMap
+        from meshmode.mesh.processing import (
+            BoundaryPairMapping, glue_mesh_boundaries)
         bdry_pair_mappings_and_tols = []
         for idim in range(dim):
             if periodic[idim]:
@@ -1603,7 +1600,7 @@ def generate_annular_cylinder_slice_mesh(
         aff_map = AffineMap(matrix, center - matrix @ center)
 
         from meshmode.mesh.processing import (
-            glue_mesh_boundaries, BoundaryPairMapping)
+            BoundaryPairMapping, glue_mesh_boundaries)
         periodic_mesh = glue_mesh_boundaries(
             mesh, bdry_pair_mappings_and_tols=[
                 (BoundaryPairMapping("-theta", "+theta", aff_map), 1e-12)])
@@ -1633,9 +1630,10 @@ def warp_and_refine_until_resolved(
 
     .. versionadded:: 2018.1
     """
-    from modepy.modes import simplex_onb
     from modepy.matrices import vandermonde
     from modepy.modal_decay import simplex_interp_error_coefficient_estimator_matrix
+    from modepy.modes import simplex_onb
+
     from meshmode.mesh.refinement import RefinerWithoutAdjacency
 
     if isinstance(unwarped_mesh_or_refiner, RefinerWithoutAdjacency):

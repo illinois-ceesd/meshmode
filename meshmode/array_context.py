@@ -1065,6 +1065,8 @@ def _get_iel_to_idofs(kernel):
                                           " does not appear as a singly nested"
                                           " loop.")
 
+        # {{{ <iel, idof> loop (simplicial)
+
         elif ((len(insn.within_inames) == 2)
               and (len(insn.within_inames & iel_inames) == 1)
               and (len(insn.within_inames & idof_inames) == 1)):
@@ -1081,31 +1083,51 @@ def _get_iel_to_idofs(kernel):
                 raise NotImplementedError("The <iel,idof> loop "
                                           f"'{insn.within_inames}' has the idof-loop"
                                           " that's not nested within the iel-loop.")
+        # }}}
 
-        elif (len(insn.within_inames) > 2):
-            if ((len(insn.within_inames & iel_inames) == 1)
+        # {{{ <iel, idof, ...> loop (tensor product)
+
+        elif ((len(insn.within_inames) > 2)
+              and (len(insn.within_inames & iel_inames) == 1)
+              and (len(insn.within_inames & idof_inames) > 1)):
+
+            iel, = insn.within_inames & iel_inames
+            for idof in insn.within_inames & idof_inames:
+                iel_to_idofs[iel].add(idof)
+
+                if all((iel in kernel.id_to_insn[dof_insn].within_inames)
+                       for dof_insn in kernel.iname_to_insns()[idof]):
+                    pass
+                else:
+                    for dof_insn in kernel.iname_to_insns()[idof]:
+                        if iel not in kernel.id_to_insn[dof_insn].within_inames:
+                            print("_get_iel_to_idofs: "
+                                  f"{str(kernel.id_to_insn[dof_insn])=}")
+                    raise NotImplementedError("The <iel,idof> loop "
+                                              f"'{insn.within_inames}' has the "
+                                              "idof-loop that's not nested "
+                                              "within the iel-loop.")
+
+        # }}}
+
+        # {{{ <iel, idof, iface> loop
+
+        elif ((len(insn.within_inames) > 2)
+                and (len(insn.within_inames & iel_inames) == 1)
                 and (len(insn.within_inames & idof_inames) == 1)
                 and (len(insn.within_inames & (idim_inames | iface_inames))
                      == (len(insn.within_inames) - 2))):
-                iel, = insn.within_inames & iel_inames
-                idof, = insn.within_inames & idof_inames
+            iel, = insn.within_inames & iel_inames
+            idof, = insn.within_inames & idof_inames
+            iel_to_idofs[iel].add(idof)
+            if all((all({iel, idof} <= kernel.id_to_insn[non_iel_insn].within_inames
+                        for non_iel_insn in kernel.iname_to_insns()[non_iel_iname]))
+                   for non_iel_iname in insn.within_inames - {iel}):
                 iel_to_idofs[iel].add(idof)
-                if all((all({iel, idof} <= kernel.id_to_insn[non_iel_insn].within_inames
-                            for non_iel_insn in kernel.iname_to_insns()[non_iel_iname]))
-                       for non_iel_iname in insn.within_inames - {iel}):
-                    iel_to_idofs[iel].add(idof)
-                else:
-                    raise NotImplementedError("Could not fit into  <iel,idof,iface>"
-                                              " loop nest pattern.")
-
-            # WARNING: THIS IS NOT FINAL
-            # FIXME: MAKE THIS BETTER
-            elif ((len(insn.within_inames & iel_inames) == 1)
-                    and (len(insn.within_inames & idof_inames) > 1)):
-                iel, = insn.within_inames & iel_inames
-                idofs = insn.within_inames & idof_inames
-                for idof in idofs:
-                    iel_to_idofs[iel].add(idof)
+            else:
+                raise NotImplementedError("Could not fit into  <iel,idof,iface>"
+                                          " loop nest pattern.")
+        # }}}
 
         else:
             print(f"_get_iel_to_idofs: {str(insn)=}")
@@ -1909,8 +1931,6 @@ class FusionContractorArrayContext(
                                                  inner_tag=f"l.{len(idofs)}",
                                                  outer_tag="g.0")
                         else:
-                            # NOTE: in the case of tensor product elements,
-                            # # data axes can be > # allowable hw axes
                             new_iname = ("_").join([idof for idof in idofs])
 
                             # get new sizes for l.0, l.1

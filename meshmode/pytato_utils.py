@@ -80,9 +80,12 @@ class AxesTagsEquationCollector(BaseAxesTagsEquationCollector):
     def map_reshape(self, expr: pt.Reshape) -> None:
         super().map_reshape(expr)
 
+        # FIXME: what is this doing??
         if (expr.size > 0
                 and (1 not in (expr.array.shape))  # leads to ambiguous newaxis
-                and (set(expr.shape) <= (set(expr.array.shape) | {1}))):
+                and (set(expr.shape) <= (set(expr.array.shape) | {1}))
+                and (len(expr.shape) <= (len(expr.array.shape)))):
+            # NOTE: added final conditional to skip this for TP elements
             i_in_axis = 0
             for i_out_axis, dim in enumerate(expr.shape):
                 if dim != 1:
@@ -98,7 +101,6 @@ class AxesTagsEquationCollector(BaseAxesTagsEquationCollector):
             # print(f"Skipping: {expr.array.shape} -> {expr.shape}")
             # Wacky reshape => bail.
             pass
-
 
 def unify_discretization_entity_tags(expr: Union[ArrayContainer, ArrayOrNames]
                                      ) -> ArrayOrNames:

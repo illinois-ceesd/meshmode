@@ -1064,6 +1064,9 @@ def _get_iel_to_idofs(kernel):
                 raise NotImplementedError(f"The <iel> loop {insn.within_inames}"
                                           " does not appear as a singly nested"
                                           " loop.")
+
+        # {{{ <iel, idof> loop (simplicial)
+
         elif ((len(insn.within_inames) == 2)
               and (len(insn.within_inames & iel_inames) == 1)
               and (len(insn.within_inames & idof_inames) == 1)):
@@ -1080,6 +1083,35 @@ def _get_iel_to_idofs(kernel):
                 raise NotImplementedError("The <iel,idof> loop "
                                           f"'{insn.within_inames}' has the idof-loop"
                                           " that's not nested within the iel-loop.")
+        # }}}
+
+        # {{{ <iel, idof, ...> loop (tensor product)
+
+        elif ((len(insn.within_inames) > 2)
+              and (len(insn.within_inames & iel_inames) == 1)
+              and (len(insn.within_inames & idof_inames) > 1)):
+
+            iel, = insn.within_inames & iel_inames
+            for idof in insn.within_inames & idof_inames:
+                iel_to_idofs[iel].add(idof)
+
+                if all((iel in kernel.id_to_insn[dof_insn].within_inames)
+                       for dof_insn in kernel.iname_to_insns()[idof]):
+                    pass
+                else:
+                    for dof_insn in kernel.iname_to_insns()[idof]:
+                        if iel not in kernel.id_to_insn[dof_insn].within_inames:
+                            print("_get_iel_to_idofs: "
+                                  f"{str(kernel.id_to_insn[dof_insn])=}")
+                    raise NotImplementedError("The <iel,idof> loop "
+                                              f"'{insn.within_inames}' has the "
+                                              "idof-loop that's not nested "
+                                              "within the iel-loop.")
+
+        # }}}
+
+        # {{{ <iel, idof, iface> loop
+
         elif ((len(insn.within_inames) > 2)
                 and (len(insn.within_inames & iel_inames) == 1)
                 and (len(insn.within_inames & idof_inames) == 1)
@@ -1095,6 +1127,8 @@ def _get_iel_to_idofs(kernel):
             else:
                 raise NotImplementedError("Could not fit into  <iel,idof,iface>"
                                           " loop nest pattern.")
+        # }}}
+
         else:
             print(f"_get_iel_to_idofs: {str(insn)=}")
             raise NotImplementedError(f"Cannot fit loop nest '{insn.within_inames}'"
@@ -1136,8 +1170,10 @@ class EinsumTag(UniqueTag):
 
 
 def _prepare_kernel_for_parallelization(kernel):
+    from grudge.transform.metadata import TensorProductDOFAxisTag
     discr_tag_to_prefix = {DiscretizationElementAxisTag:        "iel",
                            DiscretizationDOFAxisTag:            "idof",
+                           TensorProductDOFAxisTag:             "idof_tp",
                            DiscretizationDimAxisTag:            "idim",
                            DiscretizationAmbientDimAxisTag:     "idim",
                            DiscretizationTopologicalDimAxisTag: "idim",
@@ -1694,6 +1730,21 @@ class FusionContractorArrayContext(
 
         # }}}
 
+        # {{{ force tensor product iname nesting order
+
+        from grudge.array_context import TensorProductDOFAxisTag
+
+        inames_to_tag = []
+        for iname in knl.inames:
+            if knl.iname_tags_of_type(iname, TensorProductDOFAxisTag):
+                tag = list(knl.iname_tags_of_type(iname,
+                                                  TensorProductDOFAxisTag))[0]
+                inames_to_tag.append((iname, f"l.{tag.iaxis}"))
+
+        knl = lp.tag_inames(knl, inames_to_tag)
+
+        # }}}
+
         # {{{ loop fusion
 
         with ProcessLogger(logger, "Loop Fusion"):
@@ -1859,15 +1910,44 @@ class FusionContractorArrayContext(
                 if idofs:
                     nunit_dofs = {knl.get_constant_iname_length(idof)
                                   for idof in idofs}
-                    idof, = idofs
-
                     l_one_size, l_zero_size = _get_group_size_for_dof_array_loop(
                         nunit_dofs)
 
-                    knl = lp.split_iname(knl, iel, l_one_size,
-                                         inner_tag="l.1", outer_tag="g.0")
-                    knl = lp.split_iname(knl, idof, l_zero_size,
-                                         inner_tag="l.0", outer_tag="unr")
+                    if len(idofs) == 1:
+                        idof, = idofs
+
+                        knl = lp.split_iname(knl, idof, l_zero_size,
+                                             inner_tag="l.0", outer_tag="unr")
+                        knl = lp.split_iname(knl, iel, l_one_size,
+                                             inner_tag="l.1", outer_tag="g.0")
+                    else:
+                        if len(idofs) <= 2:
+                            for i,idof in enumerate(idofs):
+                                knl = lp.split_iname(knl, idof, l_zero_size,
+                                                     inner_tag=f"l.{i}",
+                                                     outer_tag="unr")
+
+                            knl = lp.split_iname(knl, iel, l_one_size,
+                                                 inner_tag=f"l.{len(idofs)}",
+                                                 outer_tag="g.0")
+                        else:
+                            new_iname = ("_").join([idof for idof in idofs])
+
+                            # get new sizes for l.0, l.1
+                            new_sizes = _get_group_size_for_dof_array_loop(1)
+                            l_one_size, l_zero_size = new_sizes
+
+                            knl = lp.join_inames(knl, list(idofs),
+                                                 new_iname=new_iname)
+
+                            knl = lp.split_iname(knl, new_iname, l_zero_size,
+                                                 inner_tag="l.0",
+                                                 outer_tag="unr")
+
+                            knl = lp.split_iname(knl, iel, l_one_size,
+                                                 inner_tag="l.1",
+                                                 outer_tag="g.0")
+
                 else:
                     knl = lp.split_iname(knl, iel, 32,
                                          outer_tag="g.0", inner_tag="l.0")

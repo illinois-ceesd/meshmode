@@ -611,24 +611,21 @@ def test_element_orientation_via_flipping(case):
                              meshfile,
                              force_ambient_dim=2,
                              mesh_construction_kwargs={"skip_tests": True})
-        print(f"ORIGINAL: {mesh=}")
     else:
         raise ValueError(f"unknown case: {case}")
 
     boundary_tags = set()
     for igrp in range(len(mesh.groups)):
-        print(f"{meshfile=} Boundaries:")
         bdry_fagrps = [
             fagrp for fagrp in mesh.facial_adjacency_groups[igrp]
             if isinstance(fagrp, BoundaryAdjacencyGroup)]
         for bdry_fagrp in bdry_fagrps:
             print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
             boundary_tags.add(bdry_fagrp.boundary_tag)
-    print(f"ORIGINAL: {boundary_tags=}")
 
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
     if not (mesh_orient > 0).all():
-        print(f"Mesh({meshfile}) is negative, trying to reorient.")
+        logger.info(f"Mesh({meshfile}) is negative, trying to reorient.")
         mesh = mio.read_gmsh(
             meshfile,
             force_ambient_dim=2,
@@ -639,15 +636,11 @@ def test_element_orientation_via_flipping(case):
         mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
         boundary_tags_reoriented = set()
         for igrp in range(len(mesh.groups)):
-            print(f"{meshfile=} Reoriented Boundaries:")
             bdry_fagrps = [
                 fagrp for fagrp in mesh.facial_adjacency_groups[igrp]
                 if isinstance(fagrp, BoundaryAdjacencyGroup)]
             for bdry_fagrp in bdry_fagrps:
-                print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
                 boundary_tags_reoriented.add(bdry_fagrp.boundary_tag)
-        print(f"REORIENTED: {mesh=}")
-        print(f"REORIENTED: {boundary_tags_reoriented=}")
 
         # Make sure rotation doesn't lose boundaries
         assert boundary_tags == boundary_tags_reoriented
@@ -663,7 +656,6 @@ def test_element_orientation_via_flipping(case):
 
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
 
-    # assert case != "3x3_bound"
     assert ((mesh_orient < 0) == (flippy > 0)).all()
 
 

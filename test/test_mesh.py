@@ -611,7 +611,7 @@ def test_element_orientation_via_flipping(case):
                              meshfile,
                              force_ambient_dim=2,
                              mesh_construction_kwargs={"skip_tests": True})
-        print(f"{mesh=}")
+        print(f"ORIGINAL: {mesh=}")
     else:
         raise ValueError(f"unknown case: {case}")
 
@@ -624,6 +624,7 @@ def test_element_orientation_via_flipping(case):
         for bdry_fagrp in bdry_fagrps:
             print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
             boundary_tags.add(bdry_fagrp.boundary_tag)
+    print(f"ORIGINAL: {boundary_tags=}")
 
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
     if not (mesh_orient > 0).all():
@@ -634,6 +635,7 @@ def test_element_orientation_via_flipping(case):
             mesh_construction_kwargs={
                 "skip_tests": True,
                 "force_positive_orientation": True})
+
         mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
         boundary_tags_reoriented = set()
         for igrp in range(len(mesh.groups)):
@@ -644,7 +646,9 @@ def test_element_orientation_via_flipping(case):
             for bdry_fagrp in bdry_fagrps:
                 print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
                 boundary_tags_reoriented.add(bdry_fagrp.boundary_tag)
-        print(f"{mesh=}")
+        print(f"REORIENTED: {mesh=}")
+        print(f"REORIENTED: {boundary_tags_reoriented=}")
+
         # Make sure rotation doesn't lose boundaries
         assert boundary_tags == boundary_tags_reoriented
 

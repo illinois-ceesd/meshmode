@@ -248,6 +248,7 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
 
         # compute facial adjacency for Mesh if there is tag information
         facial_adjacency_groups = None
+        fvitt = face_vertex_indices_to_tags.copy()
         if is_conforming and self.tags:
             from meshmode.mesh import _compute_facial_adjacency_from_vertices
             facial_adjacency_groups = _compute_facial_adjacency_from_vertices(
@@ -259,6 +260,7 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
                 vertices, groups,
                 is_conforming=is_conforming,
                 facial_adjacency_groups=facial_adjacency_groups,
+                face_vertex_indices_to_tags=fvitt,
                 **self.mesh_construction_kwargs)
 
         return (mesh, tag_to_elements) if return_tag_to_elements_map else mesh

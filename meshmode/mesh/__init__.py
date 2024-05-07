@@ -933,6 +933,7 @@ def make_mesh(
         node_vertex_consistency_tolerance: Optional[float] = None,
         skip_element_orientation_test: bool = False,
         force_positive_orientation: bool = False,
+        face_vertex_indices_to_tags=None,
         ) -> "Mesh":
     """Construct a new mesh from a given list of *groups*.
 
@@ -1020,6 +1021,14 @@ def make_mesh(
         nb_starts, nbs = nodal_adjacency
         nodal_adjacency = (
             NodalAdjacency(neighbors_starts=nb_starts, neighbors=nbs))
+    fvitt = None
+    if face_vertex_indices_to_tags is not None:
+        fvitt = face_vertex_indices_to_tags.copy()
+
+    if (facial_adjacency_groups is False or facial_adjacency_groups is None):
+        if face_vertex_indices_to_tags is not None:
+            facial_adjacency_groups = _compute_facial_adjacency_from_vertices(
+                groups, np.int32, np.int8, face_vertex_indices_to_tags)
 
     if (
             facial_adjacency_groups is not False
@@ -1032,25 +1041,24 @@ def make_mesh(
             tuple(grps) for grps in facial_adjacency_groups
             ])
 
-    mesh_making_kwargs = {
-        "vertex_id_dtype": vertex_id_dtype,
-        "element_id_dtype": element_id_dtype,
-        "face_id_dtype": face_id_dtype,
-        "facial_adjacency_groups": facial_adjacency_groups,
-    }
-
     mesh = Mesh(
         groups=tuple(groups),
         vertices=vertices,
+        vertex_id_dtype=vertex_id_dtype,
+        element_id_dtype=element_id_dtype,
+        face_id_dtype=face_id_dtype,
         _nodal_adjacency=nodal_adjacency,
         is_conforming=is_conforming,
         factory_constructed=True,
-        **mesh_making_kwargs
+        facial_adjacency_groups=facial_adjacency_groups,
     )
 
     if force_positive_orientation:
         if mesh.dim == mesh.ambient_dim:
             import meshmode.mesh.processing as mproc
+            mesh_making_kwargs = {
+                "face_vertex_indices_to_tags": fvitt
+            }
             mesh = mproc.perform_flips(
                 mesh=mesh,
                 flip_flags=mproc.find_volume_mesh_element_orientations(mesh) < 0,
@@ -1174,6 +1182,7 @@ class Mesh:
             node_vertex_consistency_tolerance: Optional[float] = None,
             skip_element_orientation_test: bool = False,
             factory_constructed: bool = False,
+            face_vertex_indices_to_tags=False,  # dummy, unused
             ) -> None:
         if _nodal_adjacency is None:
             if nodal_adjacency is not None:
@@ -1651,16 +1660,18 @@ def _compute_facial_adjacency_from_vertices(
         return []
 
     if face_vertex_indices_to_tags is not None:
+        print(f"{face_vertex_indices_to_tags=}")
         boundary_tags = {
             tag
             for tags in face_vertex_indices_to_tags.values()
             for tag in tags
             if tags is not None}
     else:
+        print("FACE_VERTEX_INDICES_TO_TAGS is NONE")
         boundary_tags = set()
 
     boundary_tag_to_index = {tag: i for i, tag in enumerate(boundary_tags)}
-
+    print(f"{boundary_tag_to_index=}")
     # Match up adjacent faces according to their vertex indices
 
     face_ids_per_group = []
@@ -1744,23 +1755,27 @@ def _compute_facial_adjacency_from_vertices(
                 for i in range(len(bdry_elements)):
                     ref_fvi = grp.face_vertex_indices()[bdry_element_faces[i]]
                     fvi = frozenset(grp.vertex_indices[bdry_elements[i], ref_fvi])
+                    print(f"{ref_fvi=}, {fvi=}")
                     tags = face_vertex_indices_to_tags.get(fvi, None)
+                    print(f"resolved {tags=}")
                     if tags is not None:
                         for tag in tags:
                             btag_idx = boundary_tag_to_index[tag]
                             belongs_to_bdry[btag_idx, i] = True
 
             for btag_idx, btag in enumerate(boundary_tags):
+                print(f"{btag=}")
                 indices, = np.where(belongs_to_bdry[btag_idx, :])
+                print(f"{indices=}")
                 if len(indices) > 0:
                     elements = bdry_elements[indices]
                     element_faces = bdry_element_faces[indices]
-                    grp_list.append(
-                        BoundaryAdjacencyGroup(
-                            igroup=igrp,
-                            boundary_tag=btag,
-                            elements=elements,
-                            element_faces=element_faces))
+                    print(f"{elements=},{element_faces=}")
+                    bgroup = BoundaryAdjacencyGroup(
+                        igroup=igrp, boundary_tag=btag,
+                        elements=elements, element_faces=element_faces)
+                    print(f"{bgroup=}")
+                    grp_list.append(bgroup)
 
             is_untagged = ~np.any(belongs_to_bdry, axis=0)
             if np.any(is_untagged):

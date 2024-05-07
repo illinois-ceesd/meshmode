@@ -1660,18 +1660,15 @@ def _compute_facial_adjacency_from_vertices(
         return []
 
     if face_vertex_indices_to_tags is not None:
-        print(f"{face_vertex_indices_to_tags=}")
         boundary_tags = {
             tag
             for tags in face_vertex_indices_to_tags.values()
             for tag in tags
             if tags is not None}
     else:
-        print("FACE_VERTEX_INDICES_TO_TAGS is NONE")
         boundary_tags = set()
 
     boundary_tag_to_index = {tag: i for i, tag in enumerate(boundary_tags)}
-    print(f"{boundary_tag_to_index=}")
     # Match up adjacent faces according to their vertex indices
 
     face_ids_per_group = []

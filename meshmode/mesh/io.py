@@ -144,7 +144,7 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
                 if face_vertex_indices not in face_vertex_indices_to_tags:
                     face_vertex_indices_to_tags[face_vertex_indices] = []
                 face_vertex_indices_to_tags[face_vertex_indices] += el_tags
-        # print(f"{face_vertex_indices_to_tags=}")
+
         # {{{ build vertex array
 
         vertices = np.asarray(self.points.T, dtype=np.float64, order="C")
@@ -248,19 +248,17 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
 
         # compute facial adjacency for Mesh if there is tag information
         facial_adjacency_groups = None
-        fvitt = face_vertex_indices_to_tags.copy()
+        face_vert_ind_to_tags_local = face_vertex_indices_to_tags.copy()
         if is_conforming and self.tags:
             from meshmode.mesh import _compute_facial_adjacency_from_vertices
             facial_adjacency_groups = _compute_facial_adjacency_from_vertices(
                     groups, np.int32, np.int8, face_vertex_indices_to_tags)
 
-        # print(f"{facial_adjacency_groups=}")
-
         mesh = make_mesh(
                 vertices, groups,
                 is_conforming=is_conforming,
                 facial_adjacency_groups=facial_adjacency_groups,
-                face_vertex_indices_to_tags=fvitt,
+                face_vertex_indices_to_tags=face_vert_ind_to_tags_local,
                 **self.mesh_construction_kwargs)
 
         return (mesh, tag_to_elements) if return_tag_to_elements_map else mesh
@@ -275,7 +273,7 @@ AXIS_NAMES = "xyz"
 
 def read_gmsh(
         filename, force_ambient_dim=None, mesh_construction_kwargs=None,
-        return_tag_to_elements_map=False, revparse=False):
+        return_tag_to_elements_map=False):
     """Read a gmsh mesh file from *filename* and return a
     :class:`meshmode.mesh.Mesh`.
 

@@ -810,7 +810,6 @@ def perform_flips(
     if mesh.vertices is None:
         raise ValueError("Mesh must have vertices to perform flips")
     if mesh_making_kwargs is None:
-        print("Mesh making kwargs is none.")
         mesh_making_kwargs = {}
 
     flip_flags = flip_flags.astype(bool)

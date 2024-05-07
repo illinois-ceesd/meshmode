@@ -611,6 +611,7 @@ def test_element_orientation_via_flipping(case):
                              meshfile,
                              force_ambient_dim=2,
                              mesh_construction_kwargs={"skip_tests": True})
+        print(f"{mesh=}")
     else:
         raise ValueError(f"unknown case: {case}")
 
@@ -623,11 +624,6 @@ def test_element_orientation_via_flipping(case):
         for bdry_fagrp in bdry_fagrps:
             print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
             boundary_tags.add(bdry_fagrp.boundary_tag)
-            # print(f"----{bdry_fagrp.elements=}")
-            # if bdry_fagrp.boundary_tag == "outer_bdy":
-            #    num_marked_outer_bdy += len(bdry_fagrp.elements)
-            #if bdry_fagrp.boundary_tag == "inner_bdy":
-            #    num_marked_inner_bdy += len(bdry_fagrp.elements)
 
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
     if not (mesh_orient > 0).all():
@@ -648,11 +644,7 @@ def test_element_orientation_via_flipping(case):
             for bdry_fagrp in bdry_fagrps:
                 print(f"Boundary tag: {bdry_fagrp.boundary_tag}")
                 boundary_tags_reoriented.add(bdry_fagrp.boundary_tag)
-                # print(f"----{bdry_fagrp.elements=}")
-                # if bdry_fagrp.boundary_tag == "outer_bdy":
-                #    num_marked_outer_bdy += len(bdry_fagrp.elements)
-                #if bdry_fagrp.boundary_tag == "inner_bdy":
-                #    num_marked_inner_bdy += len(bdry_fagrp.elements)
+        print(f"{mesh=}")
         # Make sure rotation doesn't lose boundaries
         assert boundary_tags == boundary_tags_reoriented
 
@@ -667,6 +659,7 @@ def test_element_orientation_via_flipping(case):
 
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
 
+    # assert case != "3x3_bound"
     assert ((mesh_orient < 0) == (flippy > 0)).all()
 
 

@@ -144,7 +144,7 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
                 if face_vertex_indices not in face_vertex_indices_to_tags:
                     face_vertex_indices_to_tags[face_vertex_indices] = []
                 face_vertex_indices_to_tags[face_vertex_indices] += el_tags
-
+        # print(f"{face_vertex_indices_to_tags=}")
         # {{{ build vertex array
 
         vertices = np.asarray(self.points.T, dtype=np.float64, order="C")
@@ -253,6 +253,8 @@ class GmshMeshReceiver(GmshMeshReceiverBase):
             facial_adjacency_groups = _compute_facial_adjacency_from_vertices(
                     groups, np.int32, np.int8, face_vertex_indices_to_tags)
 
+        # print(f"{facial_adjacency_groups=}")
+
         mesh = make_mesh(
                 vertices, groups,
                 is_conforming=is_conforming,
@@ -271,7 +273,7 @@ AXIS_NAMES = "xyz"
 
 def read_gmsh(
         filename, force_ambient_dim=None, mesh_construction_kwargs=None,
-        return_tag_to_elements_map=False):
+        return_tag_to_elements_map=False, revparse=False):
     """Read a gmsh mesh file from *filename* and return a
     :class:`meshmode.mesh.Mesh`.
 

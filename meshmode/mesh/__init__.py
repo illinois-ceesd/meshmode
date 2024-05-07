@@ -1032,23 +1032,29 @@ def make_mesh(
             tuple(grps) for grps in facial_adjacency_groups
             ])
 
+    mesh_making_kwargs = {
+        "vertex_id_dtype": vertex_id_dtype,
+        "element_id_dtype": element_id_dtype,
+        "face_id_dtype": face_id_dtype,
+        "facial_adjacency_groups": facial_adjacency_groups,
+    }
+
     mesh = Mesh(
         groups=tuple(groups),
         vertices=vertices,
-        is_conforming=is_conforming,
-        vertex_id_dtype=vertex_id_dtype,
-        element_id_dtype=element_id_dtype,
-        face_id_dtype=face_id_dtype,
         _nodal_adjacency=nodal_adjacency,
-        _facial_adjacency_groups=facial_adjacency_groups,
-        factory_constructed=True
-        )
+        is_conforming=is_conforming,
+        factory_constructed=True,
+        **mesh_making_kwargs
+    )
 
     if force_positive_orientation:
         if mesh.dim == mesh.ambient_dim:
             import meshmode.mesh.processing as mproc
             mesh = mproc.perform_flips(
-                    mesh,  mproc.find_volume_mesh_element_orientations(mesh) < 0)
+                mesh=mesh,
+                flip_flags=mproc.find_volume_mesh_element_orientations(mesh) < 0,
+                skip_tests=False, mesh_making_kwargs=mesh_making_kwargs)
         else:
             raise ValueError("cannot enforce positive element orientation "
                              "on non-volume meshes")

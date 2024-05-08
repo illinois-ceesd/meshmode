@@ -799,7 +799,8 @@ def flip_element_group(
 def perform_flips(
         mesh: Mesh,
         flip_flags: np.ndarray,
-        skip_tests: bool = False) -> Mesh:
+        skip_tests: bool = False,
+        mesh_making_kwargs = None) -> Mesh:
     """
     :arg flip_flags: A :class:`numpy.ndarray` with
         :attr:`meshmode.mesh.Mesh.nelements` entries
@@ -808,6 +809,8 @@ def perform_flips(
     """
     if mesh.vertices is None:
         raise ValueError("Mesh must have vertices to perform flips")
+    if mesh_making_kwargs is None:
+        mesh_making_kwargs = {}
 
     flip_flags = flip_flags.astype(bool)
 
@@ -823,9 +826,8 @@ def perform_flips(
         new_groups.append(new_grp)
 
     return make_mesh(
-            mesh.vertices, new_groups, skip_tests=skip_tests,
-            is_conforming=mesh.is_conforming,
-            )
+            mesh.vertices, groups=new_groups, skip_tests=skip_tests,
+            is_conforming=mesh.is_conforming, **mesh_making_kwargs)
 
 # }}}
 

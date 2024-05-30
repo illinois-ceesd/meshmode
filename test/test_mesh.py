@@ -572,7 +572,8 @@ def test_merge_and_map(actx_factory, group_cls, visualize=False):
 # {{{ element orientation
 
 @pytest.mark.parametrize("case", ["blob", "gh-394", "3x3", "3x3_twisted",
-                                  "3x3_minus", "3x3_bound"])
+                                  "3x3_minus", "3x3_bound",
+                                  "3x3_twisted_bound"])
 def test_element_orientation_via_flipping(case):
     from meshmode.mesh.io import FileSource, generate_gmsh
 
@@ -611,6 +612,11 @@ def test_element_orientation_via_flipping(case):
                              meshfile,
                              force_ambient_dim=2,
                              mesh_construction_kwargs={"skip_tests": True})
+    elif case == "3x3_twisted_bound":  # TPEs (clockwise conn, w/boundaries)
+        mesh = mio.read_gmsh(
+                             meshfile,
+                             force_ambient_dim=2,
+                             mesh_construction_kwargs={"skip_tests": True})
     else:
         raise ValueError(f"unknown case: {case}")
 
@@ -626,6 +632,7 @@ def test_element_orientation_via_flipping(case):
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
     if not (mesh_orient > 0).all():
         logger.info(f"Mesh({meshfile}) is negative, trying to reorient.")
+        print(f"Mesh({meshfile}) is negative, trying to reorient.")
         mesh = mio.read_gmsh(
             meshfile,
             force_ambient_dim=2,
@@ -657,7 +664,8 @@ def test_element_orientation_via_flipping(case):
     mesh_orient = mproc.find_volume_mesh_element_orientations(mesh)
 
     assert ((mesh_orient < 0) == (flippy > 0)).all()
-
+    if case == "3x3_twisted_bound":
+        assert False
 
 @pytest.mark.parametrize("order", [1, 2, 3])
 def test_element_orientation_via_single_elements(order):

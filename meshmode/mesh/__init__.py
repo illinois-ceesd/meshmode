@@ -892,7 +892,8 @@ def check_mesh_consistency(
                     "parameter force_positive_orientation=True to make_mesh().")
         else:
             warn("Unimplemented: Cannot check element orientation for a mesh with "
-                 "mesh.dim != mesh.ambient_dim", stacklevel=2)
+                 f"mesh.dim != mesh.ambient_dim ({mesh.dim=},{mesh.ambient_dim=})",
+                 stacklevel=2)
 
 
 def is_mesh_consistent(

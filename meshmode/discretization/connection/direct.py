@@ -472,10 +472,6 @@ class DirectDiscretizationConnection(DiscretizationConnection):
         cgrp = self.groups[i_tgrp]
         tgrp = self.to_discr.groups[i_tgrp]
 
-        if tgrp.nelements == 1:
-            from warnings import warn
-            warn("_per_target_group_pick_info: tgrp has 1 element")
-
         batch_dof_pick_lists = [
                 self._resample_point_pick_indices(i_tgrp, i_batch)
                 for i_batch in range(len(cgrp.batches))]

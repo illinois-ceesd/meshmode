@@ -1068,9 +1068,6 @@ def _get_iel_to_idofs(kernel):
                    for dof_insn in kernel.iname_to_insns()[idof]):
                 pass
             else:
-                for dof_insn in kernel.iname_to_insns()[idof]:
-                    if iel not in kernel.id_to_insn[dof_insn].within_inames:
-                        print(f"_get_iel_to_idofs: {str(kernel.id_to_insn[dof_insn])=}")
                 raise NotImplementedError("The <iel,idof> loop "
                                           f"'{insn.within_inames}' has the idof-loop"
                                           " that's not nested within the iel-loop.")
@@ -1090,7 +1087,6 @@ def _get_iel_to_idofs(kernel):
                 raise NotImplementedError("Could not fit into  <iel,idof,iface>"
                                           " loop nest pattern.")
         else:
-            print(f"_get_iel_to_idofs: {str(insn)=}")
             raise NotImplementedError(f"Cannot fit loop nest '{insn.within_inames}'"
                                       " into known set of loop-nest patterns.")
 

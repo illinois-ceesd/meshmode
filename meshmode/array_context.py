@@ -1251,6 +1251,9 @@ def _combine_einsum_domains(knl):
     return knl.copy(domains=new_domains)
 
 
+from pytools.persistent_dict import WriteOncePersistentDict
+from pytato.analysis import PytatoKeyBuilder
+
 class FusionContractorArrayContext(
         SingleGridWorkBalancingPytatoArrayContext):
 
@@ -1271,6 +1274,10 @@ class FusionContractorArrayContext(
             _force_svm_arg_limit=_force_svm_arg_limit)
         self.use_axis_tag_inference_fallback = use_axis_tag_inference_fallback
         self.use_einsum_inference_fallback = use_einsum_inference_fallback
+
+        self.transform_loopy_cache = WriteOncePersistentDict("meshmode-fusion_actx_transform_loopy_cache-v1",
+                key_builder=PytatoKeyBuilder(),
+                safe_sync=False)
 
     def transform_dag(self, dag):
         import pytato as pt
@@ -1639,11 +1646,20 @@ class FusionContractorArrayContext(
         from arraycontext.impl.pytato.compile import FromArrayContextCompile
 
         original_t_unit = t_unit
+        knl = t_unit.default_entrypoint
+
+        try:
+            r = self.transform_loopy_cache[t_unit]
+        except KeyError:
+            logger.debug(f"FusionContractorArrayContext.transform_loopy_program '{knl.name}': cache miss")
+            pass
+        else:
+            logger.info(f"FusionContractorArrayContext.transform_loopy_program '{knl.name}': cache hit")
+            return r
 
         # from loopy.transform.instruction import simplify_indices
         # t_unit = simplify_indices(t_unit)
 
-        knl = t_unit.default_entrypoint
 
         logger.info(f"Transforming kernel '{knl.name}' with {len(knl.instructions)} statements.")
 
@@ -1865,6 +1881,8 @@ class FusionContractorArrayContext(
             t_unit = t_unit.with_kernel(knl)
 
         # }}}
+
+        self.transform_loopy_cache[original_t_unit] = t_unit
 
         return t_unit
 

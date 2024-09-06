@@ -1882,7 +1882,7 @@ class FusionContractorArrayContext(
 
         # }}}
 
-        self.transform_loopy_cache[original_t_unit] = t_unit
+        self.transform_loopy_cache.store_if_not_present(original_t_unit, t_unit)
 
         return t_unit
 

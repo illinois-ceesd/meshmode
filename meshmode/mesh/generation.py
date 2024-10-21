@@ -1634,11 +1634,9 @@ def generate_annular_cylinder_mesh(
                         AffineMap(offset=offset)),
                     1e-12))
 
-        periodic_mesh = glue_mesh_boundaries(mesh, bdry_pair_mappings_and_tols)
+        mesh = glue_mesh_boundaries(mesh, bdry_pair_mappings_and_tols)
 
-        return periodic_mesh
-    else:
-        return mesh
+    return mesh
 
 
 def generate_annular_cylinder_slice_mesh(

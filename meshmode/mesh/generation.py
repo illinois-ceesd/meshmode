@@ -1553,7 +1553,7 @@ def generate_warped_rect_mesh(
 
 def generate_annular_cylinder_mesh(
         n: int, center: np.ndarray, inner_radius: float, outer_radius: float,
-        nelements_per_axis: Optional[int] = None,
+        nelements_per_axis: int | None = None,
         periodic: bool = False, group_cls=None, dim: int = 3) -> Mesh:
     r"""
     Generate a slice of a 3D annular cylinder for

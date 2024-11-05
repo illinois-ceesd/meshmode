@@ -21,8 +21,9 @@ THE SOFTWARE.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Generic, List, Optional, Sequence, Tuple
+from typing import Generic
 
 import numpy as np
 
@@ -52,7 +53,7 @@ from meshmode.transform_metadata import (
 
 
 def _reshape_and_preserve_tags(
-        actx: ArrayContext, ary: ArrayT, new_shape: Tuple[int, ...]) -> ArrayT:
+        actx: ArrayContext, ary: ArrayT, new_shape: tuple[int, ...]) -> ArrayT:
     try:
         tags = ary.tags
     except AttributeError:
@@ -127,11 +128,11 @@ class InterpolationBatch(Generic[ArrayT]):
     from_element_indices: ArrayT
     to_element_indices: ArrayT
     result_unit_nodes: np.ndarray
-    to_element_face: Optional[int]
+    to_element_face: int | None
 
     def __post_init__(self):
-        self._global_from_element_indices_cache: \
-                Optional[Tuple[ArrayT, ArrayT]] = None
+        self._global_from_element_indices_cache: (
+                tuple[ArrayT, ArrayT] | None) = None
 
     @property
     def nelements(self) -> int:
@@ -139,7 +140,7 @@ class InterpolationBatch(Generic[ArrayT]):
 
     def _global_from_element_indices(
             self, actx: ArrayContext, to_group: ElementGroupBase
-            ) -> Tuple[ArrayT, ArrayT]:
+            ) -> tuple[ArrayT, ArrayT]:
         """Returns a version of :attr:`from_element_indices` that is usable
         without :attr:`to_element_indices`, consisting of a tuple.
         The first entry of the tuple is an array of flags indicating
@@ -409,7 +410,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
     # {{{ _resample_point_pick_indices
 
     def _resample_point_pick_indices(self, to_group_index: int, ibatch_index: int,
-            tol_multiplier: Optional[float] = None):
+            tol_multiplier: float | None = None):
         """If :meth:`_resample_matrix` *R* is a row subset of a permutation
         matrix *P*, return the index subset I so that ``x[I] == R @ x`` up to
         machine epsilon multiplied by *tol_multiplier* (or an internally
@@ -432,7 +433,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
             tol_multiplier=None: (to_group_index, ibatch_index, tol_multiplier))
     def _frozen_resample_point_pick_indices(self, actx: ArrayContext,
             to_group_index: int, ibatch_index: int,
-            tol_multiplier: Optional[float] = None):
+            tol_multiplier: float | None = None):
         result = self._resample_point_pick_indices(
                 to_group_index=to_group_index,
                 ibatch_index=ibatch_index,
@@ -445,7 +446,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
     # }}}
 
     @memoize_method
-    def is_permutation(self, tol_multiplier: Optional[float] = None) -> bool:
+    def is_permutation(self, tol_multiplier: float | None = None) -> bool:
         """Return *True* if no interpolation is used in applying this connection,
         i.e. if the source unit nodes in the connection
         (cf. :class:`InterpolationBatch.result_unit_nodes`) match up
@@ -464,7 +465,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
 
     def _per_target_group_pick_info(
             self, actx: ArrayContext, i_tgrp: int
-            ) -> Optional[Sequence[_FromGroupPickData]]:
+            ) -> Sequence[_FromGroupPickData] | None:
         """Returns a list of :class:`_FromGroupPickData`, one per source group
         from which data is to be transferred, or *None*, if conditions for
         this representation are not met.
@@ -488,7 +489,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
         if not batch_source_groups:
             return None
 
-        result: List[_FromGroupPickData] = []
+        result: list[_FromGroupPickData] = []
         for source_group_index in batch_source_groups:
             batch_indices_for_this_source_group = [
                     i for i, batch in enumerate(cgrp.batches)
@@ -558,7 +559,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
 
     def _global_point_pick_info(
             self, actx: ArrayContext
-            ) -> Sequence[Optional[Sequence[_FromGroupPickData]]]:
+            ) -> Sequence[Sequence[_FromGroupPickData] | None]:
         if self._global_point_pick_info_cache is not None:
             return self._global_point_pick_info_cache
 
@@ -714,7 +715,7 @@ class DirectDiscretizationConnection(DiscretizationConnection):
 
         group_arrays = []
         for i_tgrp, (cgrp, group_pick_info) in enumerate(
-                zip(self.groups, self._global_point_pick_info(actx))):
+                zip(self.groups, self._global_point_pick_info(actx), strict=True)):
 
             group_array_contributions = []
 
@@ -944,7 +945,7 @@ def make_direct_full_resample_matrix(actx, conn):
     tgt_node_nr_base = 0
     mats = []
     for i_tgrp, (tgrp, cgrp) in enumerate(
-            zip(conn.to_discr.groups, conn.groups)):
+            zip(conn.to_discr.groups, conn.groups, strict=True)):
         for i_batch, batch in enumerate(cgrp.batches):
             if not len(batch.from_element_indices):
                 continue

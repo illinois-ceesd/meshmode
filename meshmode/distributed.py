@@ -36,6 +36,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -210,7 +211,7 @@ class MPIMeshDistributor:
 # between two parts on the same rank.
 @dataclass
 class RemoteGroupInfo:
-    inter_part_adj_groups: List[InterPartAdjacencyGroup]
+    inter_part_adj_groups: list[InterPartAdjacencyGroup]
     vol_elem_indices: np.ndarray
     bdry_elem_indices: np.ndarray
     bdry_faces: np.ndarray
@@ -289,12 +290,12 @@ class MPIBoundaryCommSetupHelper:
     def __init__(self,
             mpi_comm: "mpi4py.MPI.Intracomm",
             actx: ArrayContext,
-            inter_rank_bdry_info: Union[
+            inter_rank_bdry_info: (
                 # new-timey
-                Sequence[InterRankBoundaryInfo],
+                Sequence[InterRankBoundaryInfo]
                 # old-timey, for compatibility
-                Mapping[int, DirectDiscretizationConnection],
-                ],
+                | Mapping[int, DirectDiscretizationConnection]
+                ),
             bdry_grp_factory: ElementGroupFactory):
         """
         :arg bdry_grp_factory: Group factory to use when creating the remote-to-local
@@ -409,7 +410,7 @@ class MPIBoundaryCommSetupHelper:
             raise ValueError(
                 "duplicate local/remote part pair in inter_rank_bdry_info")
 
-        for i_src_rank, recvd in zip(source_ranks, data):
+        for i_src_rank, recvd in zip(source_ranks, data, strict=True):
             (remote_part_id, local_part_id,
                     remote_bdry_mesh, remote_group_infos) = recvd
 

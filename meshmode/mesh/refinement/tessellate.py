@@ -27,7 +27,6 @@ THE SOFTWARE.
 import logging
 from dataclasses import dataclass
 from functools import singledispatch
-from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -73,11 +72,11 @@ class ElementTessellationInfo:
     """
 
     children: np.ndarray
-    ref_vertices: List[Tuple[int, ...]]
+    ref_vertices: list[tuple[int, ...]]
 
-    orig_vertex_indices: Optional[np.ndarray] = None
-    midpoint_indices: Optional[np.ndarray] = None
-    midpoint_vertex_pairs: Optional[List[Tuple[int, int]]] = None
+    orig_vertex_indices: np.ndarray | None = None
+    midpoint_indices: np.ndarray | None = None
+    midpoint_vertex_pairs: list[tuple[int, int]] | None = None
 
 
 @dataclass(frozen=True)
@@ -95,7 +94,7 @@ class GroupRefinementRecord:
 
     el_tess_info: ElementTessellationInfo
     # FIXME: This should really be a CSR data structure.
-    element_mapping: List[List[int]]
+    element_mapping: list[list[int]]
 
 
 @singledispatch
@@ -151,7 +150,7 @@ def _midpoint_tuples(a, b):
 
         return d
 
-    return tuple(midpoint(ai, bi) for ai, bi in zip(a, b))
+    return tuple(midpoint(ai, bi) for ai, bi in zip(a, b, strict=True))
 
 
 def _get_ref_midpoints(shape, ref_vertices):
@@ -202,7 +201,7 @@ def _get_group_midpoints_modepy(
     resampled_midpoints = np.einsum("mu,deu->edm",
             resampling_mat, meg.nodes[:, elements])
 
-    return dict(zip(elements, resampled_midpoints))
+    return dict(zip(elements, resampled_midpoints, strict=True))
 
 
 @get_group_tessellated_nodes.register(_ModepyElementGroup)

@@ -72,6 +72,13 @@ class DiscretizationEntityAxisTag(UniqueTag):
     the axis indexes over.
     """
 
+@tag_dataclass
+class DiscretizationNICKSAxisTag(DiscretizationEntityAxisTag):
+    """
+    A tag used for Nick's Parameter Study Axis Tag so that the discretization can
+    use the compiler written by Kausik.
+    """
+
 
 @tag_dataclass
 class DiscretizationElementAxisTag(DiscretizationEntityAxisTag):

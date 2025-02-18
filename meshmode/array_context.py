@@ -1087,9 +1087,23 @@ def _get_iel_to_idofs(kernel):
                 # support parallelizing such loops.
                 raise NotImplementedError("Just NICKS LOOP")
             else:
-                raise NotImplementedError(f"The <iel> loop {insn.within_inames}"
+                raise NotImplementedError(f"The <inick> loop {insn.within_inames}"
                                           " does not appear as a singly nested"
                                           " loop.")
+        elif ((len(insn.within_inames) == 2) and
+              (len(insn.within_inames & iel_inames) == 1)
+              and (len(insn.within_inames & inick_inames))):
+            inick, = insn.within_inames & inick_inames
+            iel, = insn.within_inames & iel_inames
+            iel_to_idofs[iel].add(inick)
+            if all((iel in kernel.id_to_insn[nick_insn].within_inames)
+                   for nick_insn in kernel.iname_to_insns()[inick]):
+                pass
+            else:
+                raise NotImplementedError("The <iel, inick> loop "
+                                          f"'{insn.within_inames}' has the inick-loop"
+                                          " that's not nested within the iel-loop.")
+
 
         elif ((len(insn.within_inames) == 2)
               and (len(insn.within_inames & iel_inames) == 1)
@@ -1731,7 +1745,6 @@ class FusionContractorArrayContext(
                 if HAS_PARAM_STUDY:
                     return super().transform_loopy_program(original_t_unit)
                 if not self.use_axis_tag_inference_fallback:
-                    breakpoint()
                     raise AxisTagInferenceError("Unable to infer axis tags.")
                 else:
                     warn(f"[{knl.name}]: Falling back to a slower transformation"
@@ -1741,7 +1754,6 @@ class FusionContractorArrayContext(
                     return super().transform_loopy_program(original_t_unit)
 
         if __debug__:
-            breakpoint()
             for iname in knl.all_inames():
                 if knl.iname_tags_of_type(iname, ParameterStudyAxisTag):
                     assert knl.iname_tags_of_type(iname, DiscretizationNICKSAxisTag)
@@ -1989,7 +2001,6 @@ class FusionContractorArrayContext(
                                                  inner_tag="ord")
                         else:
                             knl = lp.tag_inames(knl, {iname: "ord" for iname in inick_inames})
-                breakpoint()
 
             t_unit = t_unit.with_kernel(knl)
 

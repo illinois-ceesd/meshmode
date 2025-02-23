@@ -47,7 +47,7 @@ from arraycontext.pytest import (
     _PytestPytatoPyOpenCLArrayContextFactory,
     register_pytest_array_context_factory,
 )
-from grudge.transform.metadata import (
+from meshmode.transform_metadata import (
     FaceMassOperatorTag,
     MassInverseOperatorTag,
     TensorProductDOFAxisTag,
@@ -1193,7 +1193,7 @@ class EinsumTag(UniqueTag):
 
 
 def _prepare_kernel_for_parallelization(kernel):
-    from grudge.transform.metadata import TensorProductDOFAxisTag
+    from meshmode.transform_metadata import TensorProductDOFAxisTag
     discr_tag_to_prefix = {DiscretizationElementAxisTag:        "iel",
                            DiscretizationDOFAxisTag:            "idof",
                            TensorProductDOFAxisTag:             "idof_tp",

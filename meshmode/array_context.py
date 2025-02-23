@@ -52,7 +52,6 @@ from grudge.transform.metadata import (
     MassInverseOperatorTag,
     TensorProductDOFAxisTag,
     TensorProductMassInverseOperatorTag,
-    TensorProductMassOperatorTag,
     TensorProductOperatorAxisTag,
     TensorProductOperatorTag
 )

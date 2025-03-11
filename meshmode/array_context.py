@@ -1282,6 +1282,10 @@ class FusionContractorArrayContext(
     def transform_dag(self, dag):
         import pytato as pt
 
+        if __debug__:
+            # Check that there aren't any duplicate arrays
+            dag = pt.transform.CopyMapper()(dag)
+
         # {{{ Remove FEMEinsumTags that might have been propagated
 
         # TODO: Is this too hacky?
@@ -1422,11 +1426,14 @@ class FusionContractorArrayContext(
             from pytato.raising import (index_lambda_to_high_level_op,
                                         ReduceOp)
 
-            if isinstance(expr, pt.Einsum):
-                return expr.tagged(pt.tags.ImplStored())
-            elif (isinstance(expr, pt.IndexLambda)
-                    and isinstance(index_lambda_to_high_level_op(expr), ReduceOp)):
-                return expr.tagged(pt.tags.ImplStored())
+            if not expr.tags_of_type(pt.tags.ImplStored):
+                if isinstance(expr, pt.Einsum):
+                    return expr.tagged(pt.tags.ImplStored())
+                elif (isinstance(expr, pt.IndexLambda)
+                      and isinstance(index_lambda_to_high_level_op(expr), ReduceOp)):
+                    return expr.tagged(pt.tags.ImplStored())
+                else:
+                    return expr
             else:
                 return expr
 
@@ -1520,11 +1527,40 @@ class FusionContractorArrayContext(
 
                     assert arg.ndim == len(new_access_descrs)
                     new_args.append(arg)
-                    new_access_descriptors.append(tuple(new_access_descrs))
+                    if (
+                            len(new_access_descrs) == len(access_descrs)
+                            and all(
+                                new_acc_descr is acc_descr
+                                for acc_descr, new_acc_descr in zip(
+                                    access_descrs,
+                                    new_access_descrs))):
+                        new_access_descriptors.append(access_descrs)
+                    else:
+                        new_access_descriptors.append(tuple(new_access_descrs))
 
-                return expr.copy(
-                    access_descriptors=tuple(new_access_descriptors),
-                    args=tuple(new_args))
+                if (
+                        len(new_args) == len(expr.args)
+                        and all(
+                            new_arg is arg
+                            for arg, new_arg in zip(expr.args, new_args))
+                        and (
+                            len(new_access_descriptors)
+                            == len(expr.access_descriptors))
+                        and all(
+                            new_access_descrs is access_descrs
+                            for access_descrs, new_access_descrs in zip(
+                                expr.access_descriptors,
+                                new_access_descriptors))):
+                    new_expr = expr
+                else:
+                    if not (
+                            hash(tuple(new_access_descriptors)) != hash(expr.access_descriptors)
+                            or hash(tuple(new_args)) != hash(expr.args)):
+                        raise AssertionError
+                    new_expr = expr.copy(
+                        access_descriptors=tuple(new_access_descriptors),
+                        args=tuple(new_args))
+                return new_expr
             else:
                 return expr
 
@@ -1625,12 +1661,22 @@ class FusionContractorArrayContext(
 
         # {{{ untag outputs tagged from being tagged ImplStored
 
+        untagged_cache: Dict[ArrayOrNames, ArrayOrNames] = {}
+
         def _untag_impl_stored(expr):
-            if isinstance(expr, pt.InputArgumentBase):
-                return expr
-            else:
-                return expr.without_tags(pt.tags.ImplStored(),
-                                         verify_existence=False)
+            try:
+                return untagged_cache[expr]
+            except KeyError:
+                if isinstance(expr, pt.InputArgumentBase):
+                    untagged_expr = expr
+                else:
+                    if expr.tags_of_type(pt.tags.ImplStored):
+                        untagged_expr = expr.without_tags(
+                            pt.tags.ImplStored(), verify_existence=False)
+                    else:
+                        untagged_expr = expr
+                untagged_cache[expr] = untagged_expr
+                return untagged_expr
 
         dag = pt.make_dict_of_named_arrays({
                 name: _untag_impl_stored(named_ary.expr)

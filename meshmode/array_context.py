@@ -1695,8 +1695,9 @@ class FusionContractorArrayContext(
 
         # {{{ hardcode offset to 0  (sorry humanity)
 
-        knl = knl.copy(args=[arg.copy(offset=0)
-                             for arg in knl.args])
+        # Commenting this for valuearg version (mtc)
+        # knl = knl.copy(args=[arg.copy(offset=0)
+        #                     for arg in knl.args])
 
         # }}}
 

@@ -1275,12 +1275,28 @@ class FusionContractorArrayContext(
         self.use_axis_tag_inference_fallback = use_axis_tag_inference_fallback
         self.use_einsum_inference_fallback = use_einsum_inference_fallback
 
-        self.transform_loopy_cache = WriteOncePersistentDict("meshmode-fusion_actx_transform_loopy_cache-v1",
+        self.transform_loopy_cache = \
+            WriteOncePersistentDict("meshmode-fusion_actx_transform_loopy_cache-v1",
+                key_builder=PytatoKeyBuilder(),
+                safe_sync=False)
+        self.transform_dag_cache = \
+            WriteOncePersistentDict("meshmode-fusion_actx_transform_dag_cache-v1",
                 key_builder=PytatoKeyBuilder(),
                 safe_sync=False)
 
     def transform_dag(self, dag):
+        from pyopencl.array import queue_for_pickling
         import pytato as pt
+
+        orig_dag = pt.transform.map_and_copy(dag, lambda x: x)
+
+        try:
+            with queue_for_pickling(self.queue, self.allocator):
+                r = self.transform_dag_cache[dag]
+            logger.info(f"FusionContractorArrayContext.transform_dag: cache hit")
+            return r
+        except KeyError:
+            logger.debug(f"FusionContractorArrayContext.transform_dag: cache miss")
 
         # {{{ Remove FEMEinsumTags that might have been propagated
 
@@ -1637,6 +1653,9 @@ class FusionContractorArrayContext(
                 for name, named_ary in dag.items()})
 
         # }}}
+
+        with queue_for_pickling(self.queue, self.allocator):
+            self.transform_dag_cache.store_if_not_present(orig_dag, dag)
 
         return dag
 

@@ -1267,10 +1267,10 @@ def generate_box_mesh(
         nvertices_per_element = 2
 
         if nelements > 0:
-            base_i = np.arange(shape_m1[0])
+            i0 = np.arange(shape_m1[0])
 
-            a0 = vertex_indices[base_i]
-            a1 = vertex_indices[base_i+1]
+            a0 = vertex_indices[i0]
+            a1 = vertex_indices[i0+1]
 
             el_vertices = np.array([a0, a1], dtype=np.int32).T
             box_face_to_elements = {
@@ -1323,13 +1323,13 @@ def generate_box_mesh(
         if nelements > 0:
             base_idx_tuples = np.array(list(np.ndindex(shape_m1)))
 
-            base_i = base_idx_tuples[:, 0]
-            base_j = base_idx_tuples[:, 1]
+            i0 = base_idx_tuples[:, 0]
+            j0 = base_idx_tuples[:, 1]
 
-            a00 = vertex_indices[base_i, base_j]
-            a01 = vertex_indices[base_i, base_j+1]
-            a10 = vertex_indices[base_i+1, base_j]
-            a11 = vertex_indices[base_i+1, base_j+1]
+            a00 = vertex_indices[i0, j0]
+            a01 = vertex_indices[i0, j0+1]
+            a10 = vertex_indices[i0+1, j0]
+            a11 = vertex_indices[i0+1, j0+1]
 
             if is_tp:
                 el_vertices = np.array([a00, a10, a01, a11], dtype=np.int32).T
@@ -1338,15 +1338,12 @@ def generate_box_mesh(
                 for box_face in box_faces:
                     side, axis = box_face
                     axis = int(axis)
-                    if side == "-":
-                        elements, = np.where(base_idx_tuples[:, axis] == 0)
-                    else:
-                        elements, = np.where(
-                            base_idx_tuples[:, axis] == shape_m1[axis]-1)
+                    idx_crit = 0 if side == "-" else shape_m1[axis] - 1
+                    elements, = np.where(base_idx_tuples[:, axis] == idx_crit)
                     box_face_to_elements[box_face] = elements
 
             elif mesh_type == "X":
-                m = midpoint_indices[base_i, base_j]
+                m = midpoint_indices[i0, j0]
                 el_vertices = np.empty(
                     (nelements, nvertices_per_element), dtype=np.int32)
                 el_vertices[0::4, :] = np.array([a00, a10, m]).T
@@ -1354,25 +1351,20 @@ def generate_box_mesh(
                 el_vertices[2::4, :] = np.array([a11, a01, m]).T
                 el_vertices[3::4, :] = np.array([a01, a00, m]).T
 
+                box_face_to_subelement_offset = {
+                    "-0": 3,
+                    "+0": 1,
+                    "-1": 0,
+                    "+1": 2}
+
                 box_face_to_elements = {}
                 for box_face in box_faces:
                     side, axis = box_face
                     axis = int(axis)
-                    if side == "-":
-                        box_elements, = np.where(base_idx_tuples[:, axis] == 0)
-                    else:
-                        box_elements, = np.where(
-                            base_idx_tuples[:, axis] == shape_m1[axis]-1)
-                    if box_face == "-0":
-                        subelement_offset = 3
-                    if box_face == "+0":
-                        subelement_offset = 1
-                    if box_face == "-1":
-                        subelement_offset = 0
-                    if box_face == "+1":
-                        subelement_offset = 2
+                    idx_crit = 0 if side == "-" else shape_m1[axis] - 1
+                    box_elements, = np.where(base_idx_tuples[:, axis] == idx_crit)
                     box_face_to_elements[box_face] = \
-                        4*box_elements + subelement_offset
+                        4*box_elements + box_face_to_subelement_offset[box_face]
 
             else:
                 el_vertices = np.empty(
@@ -1380,21 +1372,18 @@ def generate_box_mesh(
                 el_vertices[0::2, :] = np.array([a00, a10, a01]).T
                 el_vertices[1::2, :] = np.array([a11, a01, a10]).T
 
+                side_to_subelement_offset = {
+                    "-": 0,
+                    "+": 1}
+
                 box_face_to_elements = {}
                 for box_face in box_faces:
                     side, axis = box_face
                     axis = int(axis)
-                    if side == "-":
-                        box_elements, = np.where(base_idx_tuples[:, axis] == 0)
-                    else:
-                        box_elements, = np.where(
-                            base_idx_tuples[:, axis] == shape_m1[axis]-1)
-                    if side == "-":
-                        subelement_offset = 0
-                    if side == "+":
-                        subelement_offset = 1
+                    idx_crit = 0 if side == "-" else shape_m1[axis] - 1
+                    box_elements, = np.where(base_idx_tuples[:, axis] == idx_crit)
                     box_face_to_elements[box_face] = \
-                        2*box_elements + subelement_offset
+                        2*box_elements + side_to_subelement_offset[side]
         else:
             el_vertices = np.empty((0, nvertices_per_element), dtype=np.int32)
             box_face_to_elements = {
@@ -1421,18 +1410,18 @@ def generate_box_mesh(
         if nelements > 0:
             base_idx_tuples = np.array(list(np.ndindex(shape_m1)))
 
-            base_i = base_idx_tuples[:, 0]
-            base_j = base_idx_tuples[:, 1]
-            base_k = base_idx_tuples[:, 2]
+            i0 = base_idx_tuples[:, 0]
+            j0 = base_idx_tuples[:, 1]
+            k0 = base_idx_tuples[:, 2]
 
-            a000 = vertex_indices[base_i, base_j, base_k]
-            a001 = vertex_indices[base_i, base_j, base_k+1]
-            a010 = vertex_indices[base_i, base_j+1, base_k]
-            a011 = vertex_indices[base_i, base_j+1, base_k+1]
-            a100 = vertex_indices[base_i+1, base_j, base_k]
-            a101 = vertex_indices[base_i+1, base_j, base_k+1]
-            a110 = vertex_indices[base_i+1, base_j+1, base_k]
-            a111 = vertex_indices[base_i+1, base_j+1, base_k+1]
+            a000 = vertex_indices[i0, j0, k0]
+            a001 = vertex_indices[i0, j0, k0+1]
+            a010 = vertex_indices[i0, j0+1, k0]
+            a011 = vertex_indices[i0, j0+1, k0+1]
+            a100 = vertex_indices[i0+1, j0, k0]
+            a101 = vertex_indices[i0+1, j0, k0+1]
+            a110 = vertex_indices[i0+1, j0+1, k0]
+            a111 = vertex_indices[i0+1, j0+1, k0+1]
 
             if is_tp:
                 el_vertices = np.array([
@@ -1443,11 +1432,8 @@ def generate_box_mesh(
                 for box_face in box_faces:
                     side, axis = box_face
                     axis = int(axis)
-                    if side == "-":
-                        elements, = np.where(base_idx_tuples[:, axis] == 0)
-                    else:
-                        elements, = np.where(
-                            base_idx_tuples[:, axis] == shape_m1[axis]-1)
+                    idx_crit = 0 if side == "-" else shape_m1[axis] - 1
+                    elements, = np.where(base_idx_tuples[:, axis] == idx_crit)
                     box_face_to_elements[box_face] = elements
 
             else:
@@ -1460,30 +1446,23 @@ def generate_box_mesh(
                 el_vertices[4::6, :] = np.array([a011, a010, a110, a101]).T
                 el_vertices[5::6, :] = np.array([a011, a111, a101, a110]).T
 
+                box_face_to_subelement_offsets = {
+                    "-0": (0, 2),
+                    "+0": (3, 5),
+                    "-1": (0, 1),
+                    "+1": (4, 5),
+                    "-2": (0, 3),
+                    "+2": (2, 5)}
+
                 box_face_to_elements = {}
                 for box_face in box_faces:
                     side, axis = box_face
                     axis = int(axis)
-                    if side == "-":
-                        box_elements, = np.where(base_idx_tuples[:, axis] == 0)
-                    else:
-                        box_elements, = np.where(
-                            base_idx_tuples[:, axis] == shape_m1[axis]-1)
-                    if box_face == "-0":
-                        subelement_offsets = (0, 2)
-                    if box_face == "+0":
-                        subelement_offsets = (3, 5)
-                    if box_face == "-1":
-                        subelement_offsets = (0, 1)
-                    if box_face == "+1":
-                        subelement_offsets = (4, 5)
-                    if box_face == "-2":
-                        subelement_offsets = (0, 3)
-                    if box_face == "+2":
-                        subelement_offsets = (2, 5)
+                    idx_crit = 0 if side == "-" else shape_m1[axis] - 1
+                    box_elements, = np.where(base_idx_tuples[:, axis] == idx_crit)
                     box_face_to_elements[box_face] = np.concatenate([
                         6*box_elements + offset
-                        for offset in subelement_offsets])
+                        for offset in box_face_to_subelement_offsets[box_face]])
         else:
             el_vertices = np.empty((0, nvertices_per_element), dtype=np.int32)
             box_face_to_elements = {
@@ -1545,10 +1524,7 @@ def generate_box_mesh(
                 continue
             side, axis = box_face
             axis = int(axis)
-            if side == "-":
-                vert_crit = 0
-            elif side == "+":
-                vert_crit = shape[axis] - 1
+            vert_crit = 0 if side == "-" else shape[axis] - 1
             for ielem in elements:
                 for ref_fvi in grp.face_vertex_indices():
                     fvi = grp.vertex_indices[ielem, ref_fvi]

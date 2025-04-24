@@ -491,8 +491,19 @@ def get_partition_by_pymetis(mesh, num_parts, *, connectivity="facial", **kwargs
     else:
         raise ValueError("invalid value of connectivity")
 
+    weights = np.zeros(mesh.nelements, dtype=np.int32)
+    for fagrp_list in mesh.facial_adjacency_groups:
+        for fagrp in fagrp_list:
+            if not isinstance(fagrp, InteriorAdjacencyGroup):
+                global_elements = \
+                    fagrp.elements + mesh.base_element_nrs[fagrp.igroup]
+                for el in global_elements:
+                    weights[el] += 5
+    weights = np.maximum(weights, 1)
+
     from pymetis import part_graph
-    _, p = part_graph(num_parts, xadj=xadj, adjncy=adjncy, **kwargs)
+    _, p = part_graph(num_parts, xadj=xadj, adjncy=adjncy,
+                      vweights=weights, **kwargs)
 
     return np.array(p)
 

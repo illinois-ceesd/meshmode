@@ -1695,8 +1695,9 @@ class FusionContractorArrayContext(
 
         # {{{ hardcode offset to 0  (sorry humanity)
 
-        # knl = knl.copy(args=[arg.copy(offset=0)
-        #                     for arg in knl.args])
+        knl = knl.copy(args=[arg.copy(offset=0) if isinstance(arg, lp.ArrayArg)
+                             else arg
+                             for arg in knl.args])
 
         # }}}
 

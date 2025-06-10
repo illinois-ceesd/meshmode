@@ -1675,7 +1675,10 @@ class FusionContractorArrayContext(
                          " strategy as some loops are uninferred which mesh entity"
                          " they belong to.",
                          stacklevel=2)
-                    return super().transform_loopy_program(original_t_unit)
+                    new_t_unit = super().transform_loopy_program(original_t_unit)
+                    self.transform_loopy_cache.store_if_not_present(
+                        original_t_unit, new_t_unit)
+                    return new_t_unit
 
         for insn in knl.instructions:
             for assignee in insn.assignee_var_names():
@@ -1689,7 +1692,10 @@ class FusionContractorArrayContext(
                              " strategy as some instructions couldn't be inferred as"
                              " einsums",
                              stacklevel=2)
-                        return super().transform_loopy_program(original_t_unit)
+                        new_t_unit = super().transform_loopy_program(original_t_unit)
+                        self.transform_loopy_cache.store_if_not_present(
+                            original_t_unit, new_t_unit)
+                        return new_t_unit
 
         # }}}
 
@@ -1798,7 +1804,10 @@ class FusionContractorArrayContext(
                      "transform_loopy_program not broad enough (yet)."
                      " Falling back to a possibly slower"
                      " transformation strategy.")
-                return super().transform_loopy_program(original_t_unit)
+                new_t_unit = super().transform_loopy_program(original_t_unit)
+                self.transform_loopy_cache.store_if_not_present(
+                    original_t_unit, new_t_unit)
+                return new_t_unit
 
         # }}}
 

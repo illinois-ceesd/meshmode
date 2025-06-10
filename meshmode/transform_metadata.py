@@ -8,6 +8,7 @@
 .. autoclass:: DiscretizationDOFAxisTag
 .. autoclass:: DiscretizationAmbientDimAxisTag
 .. autoclass:: DiscretizationTopologicalDimAxisTag
+.. autoclass:: DiscretizationDOFPickListAxisTag
 """
 
 __copyright__ = """
@@ -71,6 +72,13 @@ class DiscretizationEntityAxisTag(UniqueTag):
     the axis indexes over.
     """
 
+@tag_dataclass
+class DiscretizationNICKSAxisTag(DiscretizationEntityAxisTag):
+    """
+    A tag used for Nick's Parameter Study Axis Tag so that the discretization can
+    use the compiler written by Kausik.
+    """
+
 
 @tag_dataclass
 class DiscretizationElementAxisTag(DiscretizationEntityAxisTag):
@@ -120,4 +128,13 @@ class DiscretizationTopologicalDimAxisTag(DiscretizationDimAxisTag):
     """
     Array dimensions tagged with this tag type describe an axis indexing over
     the discretization's physical coordinate dimensions.
+    """
+
+
+@tag_dataclass
+class DiscretizationDOFPickListAxisTag(DiscretizationEntityAxisTag):
+    """
+    Array dimensions tagged with this tag type describe an axis indexing over
+    DOF pick lists. See :mod:`meshmode.discretization.connection.direct` for
+    details.
     """

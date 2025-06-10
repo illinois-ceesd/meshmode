@@ -932,7 +932,8 @@ def check_mesh_consistency(
                     "parameter force_positive_orientation=True to make_mesh().")
         else:
             warn("Unimplemented: Cannot check element orientation for a mesh with "
-                 "mesh.dim != mesh.ambient_dim", stacklevel=2)
+                 f"mesh.dim != mesh.ambient_dim ({mesh.dim=},{mesh.ambient_dim=})",
+                 stacklevel=2)
 
 
 def is_mesh_consistent(
@@ -972,7 +973,8 @@ def make_mesh(
         node_vertex_consistency_tolerance: float | None = None,
         skip_element_orientation_test: bool = False,
         force_positive_orientation: bool = False,
-        ) -> Mesh:
+        face_vertex_indices_to_tags=None,
+        ) -> "Mesh":
     """Construct a new mesh from a given list of *groups*.
 
     This constructor performs additional checks on the mesh once constructed and
@@ -1060,6 +1062,15 @@ def make_mesh(
         nodal_adjacency = (
             NodalAdjacency(neighbors_starts=nb_starts, neighbors=nbs))
 
+    face_vert_ind_to_tags_local = None
+    if face_vertex_indices_to_tags is not None:
+        face_vert_ind_to_tags_local = face_vertex_indices_to_tags.copy()
+
+    if (facial_adjacency_groups is False or facial_adjacency_groups is None):
+        if face_vertex_indices_to_tags is not None:
+            facial_adjacency_groups = _compute_facial_adjacency_from_vertices(
+                groups, np.int32, np.int8, face_vertex_indices_to_tags)
+
     if (
             facial_adjacency_groups is not False
             and facial_adjacency_groups is not None):
@@ -1084,8 +1095,13 @@ def make_mesh(
     if force_positive_orientation:
         if mesh.dim == mesh.ambient_dim:
             import meshmode.mesh.processing as mproc
+            mesh_making_kwargs = {
+                "face_vertex_indices_to_tags": face_vert_ind_to_tags_local
+            }
             mesh = mproc.perform_flips(
-                    mesh,  mproc.find_volume_mesh_element_orientations(mesh) < 0)
+                mesh=mesh,
+                flip_flags=mproc.find_volume_mesh_element_orientations(mesh) < 0,
+                skip_tests=False, mesh_making_kwargs=mesh_making_kwargs)
         else:
             raise ValueError("cannot enforce positive element orientation "
                              "on non-volume meshes")

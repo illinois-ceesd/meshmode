@@ -477,7 +477,8 @@ class Discretization:
              f"in 2025. Use '{type(self).__name__}.zeros' instead.",
              DeprecationWarning, stacklevel=2)
 
-        return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        return self._new_array(actx, actx.zeros, dtype=dtype)
 
     def zeros(self, actx: ArrayContext,
               dtype: np.dtype | None = None) -> _DOFArray:
@@ -491,7 +492,8 @@ class Discretization:
             raise TypeError(
                 f"'actx' must be an ArrayContext, not '{type(actx).__name__}'")
 
-        return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        return self._new_array(actx, actx.zeros, dtype=dtype)
 
     def empty_like(self, array: _DOFArray) -> _DOFArray:
         warn(f"'{type(self).__name__}.empty_like' is deprecated and will be removed "
@@ -499,7 +501,8 @@ class Discretization:
              DeprecationWarning, stacklevel=2)
 
         actx = array.array_context
-        return self._new_array(actx, actx.np.zeros, dtype=array.entry_dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=array.entry_dtype)
+        return self._new_array(actx, actx.zeros, dtype=array.entry_dtype)
 
     def zeros_like(self, array: _DOFArray) -> _DOFArray:
         return self.zeros(array.array_context, dtype=array.entry_dtype)

@@ -2,6 +2,8 @@
 .. autoclass:: PyOpenCLArrayContext
 .. autoclass:: PytatoPyOpenCLArrayContext
 """
+from __future__ import annotations
+
 
 __copyright__ = "Copyright (C) 2020 Andreas Kloeckner"
 
@@ -37,6 +39,8 @@ from typing import (
     TYPE_CHECKING
 )
 from warnings import warn
+
+from typing_extensions import override
 
 from arraycontext import (
     PyOpenCLArrayContext as PyOpenCLArrayContextBase,
@@ -83,6 +87,11 @@ class EinsumInferenceError(ArrayContextLoopyTransformError):
     pass
 
 
+if TYPE_CHECKING:
+    import pytato as pt_typ
+    from loopy import TranslationUnit
+
+
 def thaw(actx, ary):
     warn("meshmode.array_context.thaw is deprecated. Use arraycontext.thaw instead. "
             "WARNING: The argument order is reversed between these two functions. "
@@ -94,7 +103,7 @@ def thaw(actx, ary):
 
 # {{{ kernel transform function
 
-def _transform_loopy_inner(t_unit):
+def _transform_loopy_inner(t_unit: TranslationUnit):
     import loopy as lp
     from arraycontext.transform_metadata import ElementwiseMapKernelTag
     from pymbolic.primitives import Subscript, Variable
@@ -181,6 +190,7 @@ def _transform_loopy_inner(t_unit):
                                 "FirstAxisIsElementsTag-tagged kernels must be "
                                 "subscripts")
 
+                    assert isinstance(assignee.aggregate, Variable)
                     if assignee.aggregate.name not in first_axis_el_args:
                         continue
 
@@ -252,7 +262,8 @@ class PyOpenCLArrayContext(PyOpenCLArrayContextBase):
     See :mod:`meshmode.transform_metadata` for relevant metadata.
     """
 
-    def transform_loopy_program(self, t_unit):
+    @override
+    def transform_loopy_program(self, t_unit: TranslationUnit):
         default_ep = t_unit.default_entrypoint
         options = default_ep.options
         if not (options.return_dict and options.no_numpy):
@@ -283,7 +294,8 @@ class PyOpenCLArrayContext(PyOpenCLArrayContextBase):
 # {{{ pytato pyopencl array context subclass
 
 class PytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContextBase):
-    def transform_dag(self, dag):
+    @override
+    def transform_dag(self, dag: pt_typ.DictOfNamedArrays) -> pt_typ.DictOfNamedArrays:
         dag = super().transform_dag(dag)
 
         # {{{ /!\ Remove tags from NamedArrays
@@ -291,7 +303,9 @@ class PytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContextBase):
 
         import pytato as pt
 
-        def untag_loopy_call_results(expr):
+        def untag_loopy_call_results(
+                    expr: pt.Array | pt.AbstractResultWithNamedArrays
+                ) -> pt.Array | pt.AbstractResultWithNamedArrays:
             if isinstance(expr, pt.NamedArray):
                 return expr.copy(tags=frozenset(),
                                  axes=(pt.Axis(frozenset()),)*expr.ndim)
@@ -304,7 +318,8 @@ class PytatoPyOpenCLArrayContext(PytatoPyOpenCLArrayContextBase):
 
         return dag
 
-    def transform_loopy_program(self, t_unit):
+    @override
+    def transform_loopy_program(self, t_unit: TranslationUnit):
         # FIXME: Do not parallelize for now.
         return t_unit
 

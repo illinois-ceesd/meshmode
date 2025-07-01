@@ -10,6 +10,8 @@
 .. autoclass:: DiscretizationTopologicalDimAxisTag
 .. autoclass:: DiscretizationDOFPickListAxisTag
 """
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2020-1 University of Illinois Board of Trustees

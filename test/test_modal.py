@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = "Copyright (C) 2021 University of Illinois Board of Trustees"
 
 __license__ = """
@@ -26,7 +29,7 @@ from functools import partial
 import numpy as np
 import pytest
 
-from arraycontext import pytest_generate_tests_for_array_contexts
+from arraycontext import ArrayContextFactory, pytest_generate_tests_for_array_contexts
 
 import meshmode.mesh.generation as mgen
 from meshmode import _acf  # noqa: F401
@@ -62,7 +65,9 @@ pytest_generate_tests = pytest_generate_tests_for_array_contexts(
     PolynomialEquidistantSimplexGroupFactory,
     LegendreGaussLobattoTensorProductGroupFactory,
     ])
-def test_inverse_modal_connections(actx_factory, nodal_group_factory):
+def test_inverse_modal_connections(
+            actx_factory: ArrayContextFactory,
+            nodal_group_factory):
 
     if nodal_group_factory is LegendreGaussLobattoTensorProductGroupFactory:
         group_cls = TensorProductElementGroup
@@ -112,7 +117,9 @@ def test_inverse_modal_connections(actx_factory, nodal_group_factory):
 @pytest.mark.parametrize("quad_group_factory", [
     QuadratureSimplexGroupFactory
     ])
-def test_modal_coefficients_by_projection(actx_factory, quad_group_factory):
+def test_modal_coefficients_by_projection(
+            actx_factory: ArrayContextFactory,
+            quad_group_factory):
     group_cls = SimplexElementGroup
     modal_group_factory = ModalSimplexGroupFactory
     actx = actx_factory()
@@ -172,7 +179,9 @@ def test_modal_coefficients_by_projection(actx_factory, quad_group_factory):
 @pytest.mark.parametrize("quad_group_factory", [
     QuadratureSimplexGroupFactory
     ])
-def test_quadrature_based_modal_connection_reverse(actx_factory, quad_group_factory):
+def test_quadrature_based_modal_connection_reverse(
+            actx_factory: ArrayContextFactory,
+            quad_group_factory):
 
     group_cls = SimplexElementGroup
     modal_group_factory = ModalSimplexGroupFactory
@@ -225,7 +234,7 @@ def test_quadrature_based_modal_connection_reverse(actx_factory, quad_group_fact
     (2, [10, 20, 30]),
     (3, [10, 20, 30]),
     ])
-def test_modal_truncation(actx_factory, nodal_group_factory,
+def test_modal_truncation(actx_factory: ArrayContextFactory, nodal_group_factory,
                           dim, mesh_pars):
 
     if nodal_group_factory == "warp_and_blend":

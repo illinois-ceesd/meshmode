@@ -10,6 +10,8 @@
 .. autoclass:: RemoteGroupInfo
 .. autoclass:: make_remote_group_infos
 """
+from __future__ import annotations
+
 
 __copyright__ = """
 Copyright (C) 2017 Ellis Hoag
@@ -36,7 +38,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -66,7 +67,14 @@ from meshmode.mesh import InteriorAdjacencyGroup, InterPartAdjacencyGroup, Mesh,
 
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable, Mapping, Sequence
+
     import mpi4py.MPI
+
+    from arraycontext import ArrayContext
+
+    from meshmode.discretization import ElementGroupFactory
+    from meshmode.discretization.connection import DirectDiscretizationConnection
 
 import logging
 
@@ -288,7 +296,7 @@ class MPIBoundaryCommSetupHelper:
     .. automethod:: complete_some
     """
     def __init__(self,
-            mpi_comm: "mpi4py.MPI.Intracomm",
+            mpi_comm: mpi4py.MPI.Intracomm,
             actx: ArrayContext,
             inter_rank_bdry_info: (
                 # new-timey
@@ -328,7 +336,7 @@ class MPIBoundaryCommSetupHelper:
         # }}}
 
         self.inter_rank_bdry_info = cast(
-                Sequence[InterRankBoundaryInfo], inter_rank_bdry_info)
+                "Sequence[InterRankBoundaryInfo]", inter_rank_bdry_info)
 
         self.bdry_grp_factory = bdry_grp_factory
 
@@ -514,7 +522,7 @@ def membership_list_to_map(
 
 
 # FIXME: Move somewhere else, since it's not strictly limited to distributed?
-def get_connected_parts(mesh: Mesh) -> "Sequence[PartID]":
+def get_connected_parts(mesh: Mesh) -> Sequence[PartID]:
     """For a local mesh part in *mesh*, determine the set of connected parts."""
     assert mesh.facial_adjacency_groups is not None
 
@@ -527,7 +535,7 @@ def get_connected_parts(mesh: Mesh) -> "Sequence[PartID]":
             if isinstance(grp, InterPartAdjacencyGroup)))
 
 
-def get_connected_partitions(mesh: Mesh) -> "Sequence[PartID]":
+def get_connected_partitions(mesh: Mesh) -> Sequence[PartID]:
     warn(
         "get_connected_partitions is deprecated and will stop working in June 2023. "
         "Use get_connected_parts instead.", DeprecationWarning, stacklevel=2)

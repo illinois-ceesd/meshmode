@@ -7,6 +7,8 @@ and Tim Warburton (Springer, 2008).
 
 .. autofunction:: download_nodal_dg_if_not_present
 """
+from __future__ import annotations
+
 
 __copyright__ = "Copyright (C) 2020 Andreas Kloeckner"
 
@@ -31,13 +33,17 @@ THE SOFTWARE.
 """
 
 
-import numpy as np
+from typing import TYPE_CHECKING
 
-import arraycontext
+import numpy as np
 
 import meshmode.discretization
 import meshmode.dof_array
 import meshmode.mesh
+
+
+if TYPE_CHECKING:
+    import arraycontext
 
 
 class NodalDGContext:

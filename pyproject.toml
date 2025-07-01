@@ -36,6 +36,7 @@ dependencies = [
     "pymbolic>=2022.2",
     "pytools>=2024.1.17",
     "recursivenodes",
+    "typing_extensions>=4.4",
 ]
 
 [project.optional-dependencies]
@@ -45,7 +46,6 @@ doc = [
     "sphinx-copybutton",
 ]
 test = [
-    "mypy",
     "pylint",
     "pytest",
     "ruff",
@@ -58,6 +58,15 @@ visualization = [
 [project.urls]
 Documentation = "https://documen.tician.de/meshmode"
 Repository = "https://github.com/inducer/meshmode"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.git*",
+  "/doc/_build",
+  "/.editorconfig",
+  "/run-*.sh",
+  "/.basedpyright",
+]
 
 [tool.ruff]
 preview = true
@@ -76,6 +85,7 @@ extend-select = [
     "RUF",  # ruff
     "UP",   # pyupgrade
     "W",    # pycodestyle
+    "TC",
 ]
 extend-ignore = [
     "C90",  # McCabe complexity
@@ -116,6 +126,11 @@ known-local-folder = [
     "meshmode",
 ]
 lines-after-imports = 2
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/*.py" = ["I002"]
+"doc/conf.py" = ["I002"]
 
 [tool.pytest.ini_options]
 markers = [
@@ -123,53 +138,91 @@ markers = [
     "octave: test requires Octave",
 ]
 
-[tool.mypy]
-python_version = "3.10"
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "meshmode.discretization.*",
-    "meshmode.dof_array.*",
-    "meshmode.interop.*",
-    "meshmode.mesh.visualization",
-    "meshmode.mesh.generation",
-    "meshmode.mesh.refinement.utils",
-    "meshmode.mesh.refinement.tessellate",
-]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = [
-    "FIAT.*",
-    "finat.*",
-    "firedrake.*",
-    "gmsh_interop.*",
-    "h5py.*",
-    "loopy.*",
-    "matplotlib.*",
-    "mayavi.*",
-    "mpl_toolkits.*",
-    "oct2py.*",
-    "pymbolic.*",
-    "pymetis.*",
-    "pyop2.*",
-    "pyopencl.*",
-    "pytential.*",
-    "pyvisfile.*",
-    "recursivenodes.*",
-    "scipy.*",
-]
-ignore_missing_imports = true
-
-
 [tool.typos.default]
 extend-ignore-re = [
   "(?Rm)^.*(#|//)\\s*spellchecker:\\s*disable-line$"
 ]
 
 [tool.typos.default.extend-words]
+# as in pt_typ, an import only used for type checking
+"typ" = "typ"
+
 "PN" = "PN"
 "nd" = "nd"
 # TODO: needed by deprecated MPIMeshDistributor.is_mananger_rank
 "mananger" = "mananger"
+
+[tool.basedpyright]
+reportImplicitStringConcatenation = "none"
+reportUnnecessaryIsInstance = "none"
+reportUnusedCallResult = "none"
+reportExplicitAny = "none"
+reportUnusedParameter = "hint"
+
+reportPrivateUsage = "hint"
+reportAny = "none"
+reportUnreachable = "hint"
+
+# This reports even cycles that are qualified by 'if TYPE_CHECKING'. Not what
+# we care about at this moment.
+# https://github.com/microsoft/pyright/issues/746
+reportImportCycles = "none"
+
+ignore = [
+    "doc/conf.py",
+]
+
+pythonVersion = "3.10"
+pythonPlatform = "All"
+
+[[tool.basedpyright.executionEnvironments]]
+root = "test"
+reportArgumentType = "hint"
+reportAttributeAccessIssue = "hint"
+reportMissingImports = "none"
+reportMissingParameterType = "none"
+reportMissingTypeStubs = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "hint"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownLambdaType = "hint"
+reportOperatorIssue = "hint"
+reportPossiblyUnboundVariable = "hint"
+reportPrivateUsage = "none"
+reportUnusedImport = "hint"
+
+
+[[tool.basedpyright.executionEnvironments]]
+root = "examples"
+reportArgumentType = "hint"
+reportAttributeAccessIssue = "hint"
+reportMissingImports = "none"
+reportMissingParameterType = "none"
+reportMissingTypeStubs = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "hint"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownLambdaType = "hint"
+reportOperatorIssue = "hint"
+reportPossiblyUnboundVariable = "hint"
+reportPrivateUsage = "none"
+
+reportGeneralTypeIssues = "hint"
+
+[[tool.basedpyright.executionEnvironments]]
+root = "meshmode/interop/firedrake"
+reportMissingImports = "none"
+reportCallIssue = "hint"
+reportArgumentType = "hint"
+
+[[tool.basedpyright.executionEnvironments]]
+root = "meshmode/interop/nodal_dg.py"
+reportMissingImports = "none"
+reportOptionalMemberAccess = "none"
+reportOptionalSubscript = "none"
+
+[[tool.basedpyright.executionEnvironments]]
+root = "meshmode/discretization/visualization.py"
+reportMissingImports = "none"

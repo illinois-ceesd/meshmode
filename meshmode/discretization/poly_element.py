@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = """
 Copyright (C) 2013-2021 Andreas Kloeckner
 Copyright (C) 2021 University of Illinois Board of Trustees
@@ -660,8 +663,8 @@ class HomogeneousOrderBasedGroupFactory(ElementGroupFactory):
     .. automethod:: __call__
     """
 
-    mesh_group_class: ClassVar[_MeshElementGroup]
-    group_class: ClassVar[ElementGroupBase]
+    mesh_group_class: ClassVar[type[_MeshElementGroup]]
+    group_class: ClassVar[type[ElementGroupBase]]
 
     def __init__(self, order: int) -> None:
         """

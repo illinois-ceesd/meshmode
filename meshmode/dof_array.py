@@ -25,14 +25,14 @@ THE SOFTWARE.
 
 import operator as op
 import threading
-from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from functools import partial, update_wrapper
 from numbers import Number
-from typing import Any, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 from warnings import warn
 
 import numpy as np
+from typing_extensions import override
 
 from arraycontext import (
     Array,
@@ -48,6 +48,10 @@ from arraycontext import (
     with_container_arithmetic,
 )
 from pytools import MovedFunctionDeprecationWrapper, single_valued
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
 
 
 __doc__ = """
@@ -69,7 +73,7 @@ __doc__ = """
 
 # {{{ DOFArray
 
-ArithType: TypeAlias = Union["DOFArray", int, float, complex, np.generic]
+ArithType: TypeAlias = "DOFArray | int | float | complex | np.generic"
 
 
 @with_container_arithmetic(
@@ -143,6 +147,9 @@ class DOFArray:
         the array context given to :func:`array_context_for_pickling`.
     """
 
+    _array_context: ArrayContext | None
+    _data: Sequence[Array]
+
     def __init__(self, actx: ArrayContext | None, data: tuple[Any, ...]) -> None:
         if __debug__:
             if not (actx is None or isinstance(actx, ArrayContext)):
@@ -155,10 +162,10 @@ class DOFArray:
         self._data = data
 
     # Tell numpy that we would like to do our own array math, thank you very much.
-    __array_ufunc__ = None
+    __array_ufunc__: ClassVar[None] = None
 
     @property
-    def array_context(self) -> ArrayContext:
+    def array_context(self) -> ArrayContext | None:
         return self._array_context
 
     @property
@@ -166,7 +173,10 @@ class DOFArray:
         return single_valued(subary.dtype for subary in self._data)
 
     @classmethod
-    def from_list(cls, actx: ArrayContext | None, res_list) -> DOFArray:
+    def from_list(cls,
+                actx: ArrayContext | None,
+                res_list: Sequence[Array]
+            ) -> DOFArray:
         r"""Create a :class:`DOFArray` from a list of arrays
         (one per :class:`~meshmode.discretization.ElementGroupBase`).
 
@@ -181,9 +191,11 @@ class DOFArray:
 
         return cls(actx, tuple(res_list))
 
+    @override
     def __str__(self) -> str:
         return f"DOFArray({self._data})"
 
+    @override
     def __repr__(self) -> str:
         return f"DOFArray({self._data!r})"
 
@@ -197,7 +209,7 @@ class DOFArray:
     def __len__(self):
         return len(self._data)
 
-    def __getitem__(self, i):
+    def __getitem__(self, i: int):
         return self._data[i]
 
     def __iter__(self):
@@ -293,6 +305,7 @@ class DOFArray:
 
         # Make sure metadata inference has been done
         # https://github.com/inducer/meshmode/pull/318#issuecomment-1088320970
+        assert self.array_context
         ary = self.array_context.thaw(self.array_context.freeze(self))
 
         if self.array_context is not actx:
@@ -378,6 +391,7 @@ class DOFArray:
 
     # {{{ type stubs for arithmetic, will be replaced by @with_container_arithmetic
 
+    def __pos__(self) -> DOFArray: ...
     def __neg__(self) -> DOFArray: ...
     def __abs__(self) -> DOFArray: ...
     def __add__(self, other: ArithType) -> DOFArray: ...
@@ -386,6 +400,8 @@ class DOFArray:
     def __rsub__(self, other: ArithType) -> DOFArray: ...
     def __mul__(self, other: ArithType) -> DOFArray: ...
     def __rmul__(self, other: ArithType) -> DOFArray: ...
+    def __pow__(self, other: ArithType) -> DOFArray: ...
+    def __rpow__(self, other: ArithType) -> DOFArray: ...
     def __truediv__(self, other: ArithType) -> DOFArray: ...
     def __rtruediv__(self, other: ArithType) -> DOFArray: ...
 
@@ -504,7 +520,7 @@ def _reduce_norm(actx, arys, ord):
         raise NotImplementedError(f"unsupported value of 'ord': {ord}")
 
 
-def flat_norm(ary, ord=None) -> Any:
+def flat_norm(ary, ord: float | None = None) -> Any:
     r"""Return an element-wise :math:`\ell^{\text{ord}}` norm of *ary*.
 
     Unlike :attr:`arraycontext.ArrayContext.np`, this function handles
@@ -538,7 +554,7 @@ def flat_norm(ary, ord=None) -> Any:
                 assert actx is _ary.array_context
 
             return _reduce_norm(actx, [
-                actx.np.linalg.norm(actx.np.ravel(subary, order="A"), ord=ord)
+                actx.np.linalg.norm(actx.np.ravel(subary, order="C"), ord=ord)
                 for _, subary in serialize_container(_ary)
                 ], ord=ord)
 

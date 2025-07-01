@@ -1,4 +1,6 @@
 # mypy: disallow-untyped-defs
+from __future__ import annotations
+
 
 __copyright__ = "Copyright (C) 2014 Andreas Kloeckner"
 
@@ -22,10 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import reduce
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from warnings import warn
 
 import numpy as np
@@ -47,6 +48,10 @@ from meshmode.mesh import (
     make_mesh,
 )
 from meshmode.mesh.tools import AffineMap, find_point_to_point_mapping
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
 
 
 __doc__ = """

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 __copyright__ = "Copyright (C) 2020 Benjamin Sepanski"
 
 __license__ = """
@@ -25,7 +28,7 @@ import logging
 import numpy as np
 import pytest
 
-from arraycontext import pytest_generate_tests_for_array_contexts
+from arraycontext import ArrayContextFactory, pytest_generate_tests_for_array_contexts
 
 from meshmode import _acf  # noqa: F401
 from meshmode.array_context import PytestPyOpenCLArrayContextFactory
@@ -173,7 +176,10 @@ def check_consistency(fdrake_fspace, discr, group_nr=0):
     assert discr.ndofs == fdrake_fspace.node_count
 
 
-def test_from_fd_consistency(actx_factory, fdrake_mesh, fspace_degree):
+def test_from_fd_consistency(
+            actx_factory: ArrayContextFactory,
+            fdrake_mesh,
+            fspace_degree):
     """
     Check basic consistency with a FiredrakeConnection built from firedrake
     """
@@ -192,7 +198,7 @@ def test_from_fd_consistency(actx_factory, fdrake_mesh, fspace_degree):
     check_consistency(fdrake_fspace, discr)
 
 
-def test_to_fd_consistency(actx_factory, mm_mesh, fspace_degree):
+def test_to_fd_consistency(actx_factory: ArrayContextFactory, mm_mesh, fspace_degree):
     pytest.importorskip("firedrake")
     actx = actx_factory()
 
@@ -211,7 +217,7 @@ def test_to_fd_consistency(actx_factory, mm_mesh, fspace_degree):
 
 # {{{ Now check the FiredrakeConnection consistency when restricted to bdy
 
-def test_from_boundary_consistency(actx_factory,
+def test_from_boundary_consistency(actx_factory: ArrayContextFactory,
                                    fdrake_mesh,
                                    fspace_degree):
     """
@@ -401,7 +407,7 @@ def test_bdy_tags(mesh_name, bdy_ids, coord_indices, coord_values,
      ("warp", [10, 20, 30], 3),
      ])
 @pytest.mark.parametrize("only_convert_bdy", [False, True])
-def test_from_fd_transfer(actx_factory, fspace_degree,
+def test_from_fd_transfer(actx_factory: ArrayContextFactory, fspace_degree,
                           fdrake_mesh_name, fdrake_mesh_pars, dim,
                           only_convert_bdy):
     """
@@ -526,7 +532,12 @@ def test_from_fd_transfer(actx_factory, fspace_degree,
      ("warp", [10, 20, 30], 2),
      ("warp", [10, 20, 30], 3),
      ])
-def test_to_fd_transfer(actx_factory, fspace_degree, mesh_name, mesh_pars, dim):
+def test_to_fd_transfer(
+            actx_factory: ArrayContextFactory,
+            fspace_degree,
+            mesh_name,
+            mesh_pars,
+            dim):
     """
     Make sure creating a function which projects onto
     one dimension then transports it is the same
@@ -600,7 +611,7 @@ def test_to_fd_transfer(actx_factory, fspace_degree, mesh_name, mesh_pars, dim):
 
 @pytest.mark.parametrize("fspace_type", ("scalar", "vector", "tensor"))
 @pytest.mark.parametrize("only_convert_bdy", (False, True))
-def test_from_fd_idempotency(actx_factory,
+def test_from_fd_idempotency(actx_factory: ArrayContextFactory,
                              fdrake_mesh, fspace_degree,
                              fspace_type, only_convert_bdy):
     """
@@ -678,7 +689,7 @@ def test_from_fd_idempotency(actx_factory,
                                        atol=CLOSE_ATOL)
 
 
-def test_to_fd_idempotency(actx_factory, mm_mesh, fspace_degree):
+def test_to_fd_idempotency(actx_factory: ArrayContextFactory, mm_mesh, fspace_degree):
     """
     Make sure mm->fd->mm and (mm->)->fd->mm->fd are identity
     """

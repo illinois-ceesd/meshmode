@@ -910,9 +910,9 @@ def _fuse_loops_over_a_discr_entity(knl,
                 lp.get_kennedy_unweighted_fusion_candidates(
                     knl, inames_to_fuse,
                     prefix=f"{fused_loop_prefix}_{itag}_{i}_",
-                    # force_infusible=partial(
-                    #    _do_inames_belong_to_different_einsum_types,
-                    #    kernel=orig_knl),
+                    force_infusible=partial(
+                        _do_inames_belong_to_different_einsum_types,
+                        kernel=orig_knl),
                 ))
         knl = lp.tag_inames(knl, {f"{fused_loop_prefix}_{itag}_*": tag})
 

@@ -517,7 +517,8 @@ class Discretization:
              f"in 2025. Use '{type(self).__name__}.zeros' instead.",
              DeprecationWarning, stacklevel=2)
 
-        return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        return self._new_array(actx, actx.zeros, dtype=dtype)
 
     def zeros(self, actx: ArrayContext, dtype: DTypeLike = None) -> _DOFArray:
         """Return a zero-initialized :class:`~meshmode.dof_array.DOFArray`.
@@ -529,7 +530,8 @@ class Discretization:
         if not isinstance(actx, ArrayContext):
             raise TypeError(f"'actx' must be an ArrayContext: {type(actx)}")
 
-        return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=dtype)
+        return self._new_array(actx, actx.zeros, dtype=dtype)
 
     def empty_like(self, array: _DOFArray) -> _DOFArray:
         warn(f"'{type(self).__name__}.empty_like' is deprecated and will be removed "
@@ -540,7 +542,8 @@ class Discretization:
         if actx is None:
             raise ValueError("input array is frozen (actx is None)")
 
-        return self._new_array(actx, actx.np.zeros, dtype=array.entry_dtype)
+        # return self._new_array(actx, actx.np.zeros, dtype=array.entry_dtype)
+        return self._new_array(actx, actx.zeros, dtype=array.entry_dtype)
 
     def zeros_like(self, array: _DOFArray) -> _DOFArray:
         actx = array.array_context
